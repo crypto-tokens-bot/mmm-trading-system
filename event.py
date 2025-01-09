@@ -12,6 +12,13 @@ class EventType(Enum):
     ERROR = "ERROR"
 
 
+class Priority(Enum):
+    """Priority levels for an event."""
+    LOW = "LOW"
+    MEDIUM = "MEDIUM"
+    HIGH = "HIGH"
+
+
 class Event(ABC):
     """
     Abstract base class for a trading system event.
@@ -19,27 +26,23 @@ class Event(ABC):
     Attributes:
         __event_id (str): Unique event ID.
         __event_type (EventType): Type of event.
-        __priority (int): Event priority.
+        __priority (Priority): Event priority (enum).
         __created_at (datetime): Event creation time.
         __metadata (dict): Optional metadata.
     """
 
     def __init__(
             self,
-            event_id: str,
             event_type: EventType,
-            priority: int,
-            created_at: datetime,
+            priority: Priority,
             metadata: dict = None
     ):
         """
         Initialize the event.
 
         Args:
-            created_at (datetime): Event creation time.
-            event_id (str): Unique event ID.
-            priority (int): Event priority.
             event_type (EventType): Type of event.
+            priority (Priority): Event priority (enum).
             metadata (dict, optional): Additional data.
         """
         self.__created_at = datetime.now()
@@ -56,7 +59,7 @@ class Event(ABC):
         """Return the unique event ID."""
         return self.__event_id
 
-    def get_priority(self) -> int:
+    def get_priority(self) -> Priority:
         """Return the event priority."""
         return self.__priority
 
