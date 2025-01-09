@@ -70,8 +70,3 @@ class Event(ABC):
     def get_metadata(self) -> dict:
         """Return the metadata dictionary."""
         return self.__metadata
-
-    @abstractmethod
-    def process(self):
-        """Process the event (must be overridden)."""
-        pass
