@@ -1,6 +1,7 @@
 import asyncio
 from typing import Dict, List, Tuple
-from src import AsyncExchangeConnector
+
+from src.connectors.async_exchange_connector import AsyncExchangeConnector
 
 
 class MarketDataProvider:
