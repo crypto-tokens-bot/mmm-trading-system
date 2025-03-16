@@ -23,7 +23,8 @@ def test_add_and_get_order():
         base_currency="BTC",
         quote_currency="USDT",
         initial_quantity=1.5,
-        target_price=45000
+        target_price=45000,
+        symbol="BTCUSDT"
     )
 
     # Retrieve the order from the database
