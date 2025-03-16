@@ -1,136 +1,83 @@
 import threading
 import time
-import pytest
-from src.event import Event, EventType, Priority
+from uuid import uuid4
+
 from src.event_manager import EventManager
-import random
+from src.db.queries.event_managers import add_event_manager, get_event_manager_by_id
+from src.db.queries.events import get_next_event, add_event
 
+def test_add_event_manager():
+    """ Test the creation of an EventManager and validate its initial status. """
+    event_manager = EventManager.create_new("test")
 
-def test_event_manager_run_and_stop():
-    """
-    Test that EventManager can start and stop cleanly
-    in a separate thread without errors.
-    """
-    manager = EventManager()
-    manager.start()
-    time.sleep(0.1)
-    manager.stop()
-    assert True
+    # Check that the event manager is inactive before starting
+    db_event_manager = get_event_manager_by_id(event_manager.event_manager_id)
+    assert db_event_manager["status"] == "inactive"
+    assert str(db_event_manager["event_manager_id"]) == (event_manager.event_manager_id)
 
+    event_manager.start()
+    time.sleep(1)
+    db_event_manager = get_event_manager_by_id(event_manager.event_manager_id)
+    assert db_event_manager["status"] == "active"
 
-def test_event_manager_priority_order():
-    """
-    Test that higher priority events are fetched and handled
-    before lower priority ones.
-    """
-    processed_events = []
-
-    class TestEventManager(EventManager):
-        def _handle_event(self, event: Event):
-            processed_events.append(event.get_priority().name)
-            super()._handle_event(event)
-
-    manager = TestEventManager()
-    manager.start()
-
-    manager.add_event(Event(EventType.MARKET, Priority.LOW))
-    manager.add_event(Event(EventType.SIGNAL, Priority.MEDIUM))
-    manager.add_event(Event(EventType.ORDER, Priority.HIGH))
-    manager.add_event(Event(EventType.SIGNAL, Priority.MEDIUM))
-
-    time.sleep(0.5)
-    manager.stop()
-
-    assert processed_events == ["HIGH", "MEDIUM", "MEDIUM", "LOW"], (
-        f"Unexpected order of priorities: {processed_events}"
-    )
-
-
-@pytest.mark.parametrize("num_events", [10, 50, 100])
-def test_event_manager_multiple_events(num_events):
-    """
-    Test handling multiple events to ensure stability with
-    different volumes of events.
-    """
-    processed_events = []
-
-    class TestEventManager(EventManager):
-        def _handle_event(self, event: Event):
-            processed_events.append(event.get_priority().name)
-            super()._handle_event(event)
-
-    manager = TestEventManager()
-    manager.start()
-
-    for i in range(num_events):
-        if i % 3 == 0:
-            priority = Priority.HIGH
-        elif i % 3 == 1:
-            priority = Priority.MEDIUM
-        else:
-            priority = Priority.LOW
-        manager.add_event(Event(EventType.MARKET, priority))
-
-    time.sleep(1.0)
-    manager.stop()
-
-    assert len(processed_events) == num_events, (
-        f"Expected {num_events} processed events, got {len(processed_events)}"
-    )
-
-
-def test_multiple_managers_parallel():
-    """
-    Test running multiple EventManagers in parallel threads.
-    Each manager processes its own queue of events independently.
-    """
-
-    class TestEventManager(EventManager):
-        def __init__(self):
-            super().__init__()
-            self._processed_events = []
-
-        def _handle_event(self, event: Event):
-            self._processed_events.append(event.get_event_id())
-            super()._handle_event(event)
-
-    manager1 = TestEventManager()
-    manager2 = TestEventManager()
-
-    manager1.start()
-    manager2.start()
-
-    def worker(total_events: int):
-        for i in range(total_events):
-            priority = random.choice([Priority.HIGH, Priority.MEDIUM, Priority.LOW])
-            event = Event(EventType.ORDER, priority)
-
-            if random.random() < 0.5:
-                manager1.add_event(event)
-            else:
-                manager2.add_event(event)
-
-            time.sleep(random.uniform(0.0, 0.01))
-
-    num_workers = 3
-    events_per_worker = 10
-    total_expected_events = num_workers * events_per_worker
-    threads = []
-    for _ in range(num_workers):
-        t = threading.Thread(target=worker, args=(events_per_worker,))
-        t.start()
-        threads.append(t)
-
-    for t in threads:
-        t.join()
 
     time.sleep(1)
+    event_manager.stop()
+    event_manager.join()
+    db_event_manager = get_event_manager_by_id(event_manager.event_manager_id)
+    assert db_event_manager["status"] == "inactive"
 
-    manager1.stop()
-    manager2.stop()
 
-    total_processed = len(manager1._processed_events) + len(manager2._processed_events)
+def test_event_processing_multiple_events():
+    """ Test the processing of multiple events and ensure they are marked as processed. """
+    event_manager = EventManager.create_new("test")
+    event_manager.start()
+    # Insert multiple test events
+    for i in range(3):
+        add_event(
+            event_manager_id=event_manager.event_manager_id,
+            event_type="ORDER_FILLED",
+            priority=i,
+            payload="{}"
+        )
 
-    assert total_processed == total_expected_events, (
-        f"Expected {total_expected_events} total events processed, got {total_processed}"
-    )
+    time.sleep(8)
+
+    for i in range(3):
+        event = get_next_event(event_manager.event_manager_id)
+        assert event is None, f"Event test-event-{i} was not processed!"
+
+    event_manager.stop()
+    event_manager.join()
+
+
+def test_multiple_event_managers():
+    """ Test running multiple EventManagers concurrently with different event sets. """
+    event_managers = [EventManager.create_new("test1"), EventManager.create_new("test2")]
+
+    # Assign events to different managers
+    for manager in event_managers:
+        for j in range(2):
+            add_event(
+                event_manager_id=manager.event_manager_id,
+                event_type="ORDER_FILLED",
+                priority=j,
+                payload="{j}"
+            )
+
+    # Start all event managers
+    for manager in event_managers:
+        manager.start()
+
+    time.sleep(6)  # Wait for events to be processed
+
+    # Check that all events are processed
+    for manager in event_managers:
+        for j in range(2):
+            event = get_next_event(manager.event_manager_id)
+            assert event is None, f"Event {manager.event_manager_id}-{j} was not processed!"
+
+    # Stop all event managers
+    for manager in event_managers:
+        manager.stop()
+        manager.join()

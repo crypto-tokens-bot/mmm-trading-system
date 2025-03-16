@@ -1,125 +1,140 @@
-import threading
 import time
-from queue import Queue, Empty
+import threading
+import uuid
 from loguru import logger
-from src.event import Event, EventType, Priority
+from src.db.queries.events import get_next_event, mark_event_as_processed
+from src.db.queries.event_managers import add_event_manager, update_event_manager_status
+
+# Configure logger to write logs into logs folder
+logger.add(f"../logs/event_managers.log", level="INFO")
 
 
-class EventManager:
+class EventManager(threading.Thread):
     """
-    Manages events in separate queues by priority
-    and processes them in a separate thread after start() is called.
+    Manages events by fetching them from the database,
+    handling them, and marking them as processed.
+    Runs in a separate thread.
     """
 
-    # Common counter for all EventManager instances.
-    _global_id_counter = 1
+    def __init__(self, event_manager_id):
+        """
+        Initializes the EventManager with a unique ID.
+        The status remains inactive until the EventManager is started.
 
-    def __init__(self):
+        :param event_manager_id: Unique identifier for this event manager.
         """
-        Create a manager with queues for each priority level.
+        super().__init__()
+        self.event_manager_id = event_manager_id
+        self.running = False
+
+        logger.info(f"EventManager {self.event_manager_id} initialized.")
+
+    def _get_next_event(self):
         """
-        self._manager_id = f"EventManager-{EventManager._global_id_counter}"
-        EventManager._global_id_counter += 1
-        self._queues = {
-            Priority.HIGH: Queue(),
-            Priority.MEDIUM: Queue(),
-            Priority.LOW: Queue()
-        }
-        self._stop_flag = threading.Event()
-        self._thread = None
+        Retrieves the highest priority unprocessed event from the database.
+        If multiple events have the same priority, the earliest one is selected.
+
+        :return: Event data dictionary or None if no events are available.
+        """
+        try:
+            event = get_next_event(self.event_manager_id)
+            if event:
+                logger.info(
+                    f"EventManager {self.event_manager_id}: Fetched event {event['event_id']} with priority {event['priority']}")
+            else:
+                logger.info(f"EventManager {self.event_manager_id}: No unprocessed events found.")
+            return event
+        except Exception as e:
+            logger.error(f"Error fetching next event for EventManager {self.event_manager_id}: {e}")
+            return None
+
+    def _handle_event(self, event):
+        """
+        Processes the given event and updates its status in the database.
+
+        :param event: Dictionary containing event data.
+        """
+        if not event:
+            return
+
+        try:
+            logger.info(
+                f"EventManager {self.event_manager_id}: Handling event {event['event_id']} of type {event['event_type']}")
+
+            if event['event_type'] == "market":
+                pass
+            elif event['event_type'] == "order":
+                pass
+            elif event['event_type'] == "signal":
+                pass
+            elif event['event_type'] == "error":
+                pass
+            else:
+                pass
+
+            time.sleep(1)  # Simulate event processing
+
+            # Mark the event as processed in the database
+            mark_event_as_processed(event['event_id'])
+            logger.info(f"EventManager {self.event_manager_id}: Event {event['event_id']} marked as processed.")
+        except Exception as e:
+            logger.error(f"Error processing event {event['event_id']} for EventManager {self.event_manager_id}: {e}")
 
     def start(self):
         """
-        Start the manager in a separate thread.
-
-        :return: None
+        Starts the event manager by setting its status to active and running it in a separate thread.
         """
-        logger.info(f"[{self._manager_id}] Starting EventManager...")
-        self._stop_flag.clear()
-        self._thread = threading.Thread(target=self._run, daemon=True)
-        self._thread.start()
+        try:
+            update_event_manager_status(self.event_manager_id, "active")
+            logger.info(f"EventManager {self.event_manager_id} is now active.")
+            super().start()
+        except Exception as e:
+            logger.error(f"Error starting EventManager {self.event_manager_id}: {e}")
+
+    def run(self):
+        """
+        Processes events in a loop until no more unprocessed events remain.
+        """
+        try:
+            self.running = True
+            logger.info(f"EventManager {self.event_manager_id} started processing events.")
+
+            while self.running:
+                event = self._get_next_event()
+                if not event:
+                    logger.info(f"EventManager {self.event_manager_id}: No more events to process. Waiting...")
+                    time.sleep(3)
+                else:
+                    self._handle_event(event)
+
+            update_event_manager_status(self.event_manager_id, "inactive")
+            logger.info(f"EventManager {self.event_manager_id} stopped.")
+        except Exception as e:
+            logger.error(f"Error in run loop of EventManager {self.event_manager_id}: {e}")
 
     def stop(self):
         """
-        Signal the manager to stop and wait for the thread to finish.
-
-        :return: None
+        Stops the event manager gracefully and updates its status in the database.
         """
-        logger.info(f"[{self._manager_id}] Stopping EventManager...")
-        self._stop_flag.set()
-        if self._thread is not None:
-            self._thread.join()
-            logger.info(f"[{self._manager_id}] EventManager stopped.")
+        try:
+            self.running = False
+            logger.info(f"EventManager {self.event_manager_id} is shutting down.")
+        except Exception as e:
+            logger.error(f"Error stopping EventManager {self.event_manager_id}: {e}")
 
-    def _run(self):
+
+    @staticmethod
+    def create_new(mode):
         """
-        Main loop: continuously fetch and handle events until stopped.
+        Creates a new EventManager instance in the database and returns the corresponding object.
 
-        :return: None
+        :param mode: The mode of operation for the EventManager (e.g., "live" or "simulated").
+        :return: Instance of EventManager.
         """
-        logger.debug(f"[{self._manager_id}] EventManager main loop started.")
-        while not self._stop_flag.is_set():
-            event = self._get_next_event()
-            if event:
-                self._handle_event(event)
-            else:
-                time.sleep(0.01)
-        logger.debug(f"[{self._manager_id}] EventManager main loop exited.")
-
-    def _get_next_event(self) -> Event | None:
-        """
-        Get the first available event from the highest-priority non-empty queue.
-        Return None if all queues are empty.
-
-        :return: The next available event or None.
-        :rtype: Event | None
-        """
-        for priority in [Priority.HIGH, Priority.MEDIUM, Priority.LOW]:
-            try:
-                event = self._queues[priority].get_nowait()
-                logger.debug(
-                    f"[{self._manager_id}] Fetched event '{event.get_event_id()}' "
-                    f"from {priority.name} queue."
-                )
-                return event
-            except Empty:
-                pass
-        return None
-
-    def add_event(self, event: Event):
-        """
-        Add an event to the corresponding priority queue.
-
-        :param event: The event to be added.
-        :type event: Event
-        :return: None
-        """
-        logger.debug(
-            f"[{self._manager_id}] Adding event '{event.get_event_id()}' "
-            f"to {event.get_priority().name} queue."
-        )
-        self._queues[event.get_priority()].put(event)
-
-    def _handle_event(self, event: Event):
-        """
-        Handle the event based on its type.
-
-        :param event: The event to handle.
-        :type event: Event
-        :return: None
-        """
-        logger.info(
-            f"[{self._manager_id}] Handling event '{event.get_event_id()}' "
-            f"(type={event.get_event_type().name}, priority={event.get_priority().name})"
-        )
-
-        if event.get_event_type() == EventType.MARKET:
-            pass
-        elif event.get_event_type() == EventType.ORDER:
-            pass
-        elif event.get_event_type() == EventType.SIGNAL:
-            pass
-        elif event.get_event_type() == EventType.ERROR:
-            pass
-        else:
-            pass
+        try:
+            event_manager_id = str(uuid.uuid4())
+            add_event_manager(event_manager_id, mode, "inactive")
+            return EventManager(event_manager_id)
+        except Exception as e:
+            logger.error(f"Error creating new EventManager: {e}")
+            return None

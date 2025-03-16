@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS event_manager
+CREATE TABLE IF NOT EXISTS event_managers
 (
     event_manager_id UUID,
     mode String NOT NULL,
