@@ -1,9 +1,10 @@
 import asyncio
 import os
 import db.db_connection as db
-from src import BybitAsyncConnector
 
 from dotenv import load_dotenv
+
+from src.connectors.bybit_connector import BybitAsyncConnector
 
 
 async def main():
