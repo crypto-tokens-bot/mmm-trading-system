@@ -1,8 +1,7 @@
 # bybit_connector.py
 
 import ccxt.async_support as ccxt
-from datetime import datetime
-from connectors.async_exchange_connector import AsyncExchangeConnector
+from src.connectors.async_exchange_connector import AsyncExchangeConnector
 
 
 class BybitAsyncConnector(AsyncExchangeConnector):

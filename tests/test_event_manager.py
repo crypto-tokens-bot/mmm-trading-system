@@ -1,8 +1,8 @@
 import threading
 import time
 import pytest
-from event import Event, EventType, Priority
-from event_manager import EventManager
+from src.event import Event, EventType, Priority
+from src.event_manager import EventManager
 import random
 
 

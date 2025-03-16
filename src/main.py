@@ -1,10 +1,7 @@
 import asyncio
 import os
-import time
-
-from connectors.bybit_connector import BybitAsyncConnector
-from event import Event, EventType, Priority
-from event_manager import EventManager
+import db.db_connection as db
+from src.connectors.bybit_connector import BybitAsyncConnector
 
 from dotenv import load_dotenv
 
@@ -17,6 +14,8 @@ async def main():
     :return: None
     """
 
+    print(db.get_db_client())
+
     load_dotenv()
     bybit_exchange = BybitAsyncConnector(api_key=os.getenv('BYBIT_API_KEY'), api_secret=os.getenv('BYBIT_API_SECRET'),
                                          testnet=True)
@@ -24,6 +23,10 @@ async def main():
     print(bybit_exchange._exchange.timeframes)
     print(await bybit_exchange.fetch_ohlcv('BTC/USDT', timeframe='1m'))
     await bybit_exchange.close()
+
+
+
+
     # manager = EventManager()
     # manager.start()
     #
