@@ -1,14 +1,28 @@
 import clickhouse_connect
 from src.settings import CLICKHOUSE_CONFIG
 
+
 def get_db_client():
     return clickhouse_connect.get_client(**CLICKHOUSE_CONFIG)
 
-def execute_query(query, params=None):
-    client = get_db_client()
-    result = client.query(query, parameters=params)
-    return result.result_rows
 
-def execute_write_query(query, params=None):
-    client = get_db_client()
-    client.command(query, parameters=params)
+def execute_query(query, params=None):
+    """
+    Executes an SQL query and returns results as a list of dictionaries.
+
+    :param query: SQL query string.
+    :param params: Dictionary of query parameters (optional).
+    :return: List of dictionaries where each row is {column_name: value}.
+    """
+    # Execute query
+    print(query, params)
+    result = get_db_client().query(query, parameters=params)
+    print(result)
+    # Get column names
+    column_names = result.column_names
+
+    # Convert result to a list of dictionaries
+    rows = result.result_rows
+    dict_result = [dict(zip(column_names, row)) for row in rows]
+
+    return dict_result

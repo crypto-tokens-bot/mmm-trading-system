@@ -2,8 +2,7 @@ import threading
 import time
 from queue import Queue, Empty
 from loguru import logger
-
-from event import Event, EventType, Priority
+from src.event import Event, EventType, Priority
 
 
 class EventManager:

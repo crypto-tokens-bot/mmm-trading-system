@@ -3,7 +3,7 @@ from loguru import logger
 from src.db.db_connection import execute_query
 
 # Configure Loguru logger
-logger.add("logs/migration.log", level="INFO", format="{time} {level} {message}")
+logger.add("../../../logs/migration.log", level="INFO", format="{time} {level} {message}")
 
 
 def apply_migrations():
