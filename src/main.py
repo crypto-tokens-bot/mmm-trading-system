@@ -19,8 +19,6 @@ async def main():
     bybit_exchange = BybitAsyncConnector(api_key=os.getenv('BYBIT_API_KEY'), api_secret=os.getenv('BYBIT_API_SECRET'),
                                          testnet=True)
 
-    await bybit_exchange.create_buy_order('72f8c4fd-562a-4fee-8d5a-7081a443733d')
-
     await bybit_exchange.close()
 
 

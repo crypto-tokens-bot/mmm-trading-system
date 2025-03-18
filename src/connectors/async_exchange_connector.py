@@ -44,6 +44,9 @@ class AsyncExchangeConnector(ABC):
         if testnet:
             self._exchange.set_sandbox_mode(True)
 
+    def get_order_book(self, symbol, limit=None):
+        return self._exchange.fetch_order_book(symbol, limit)
+
     async def fetch_ohlcv(
         self,
         symbol: str,
@@ -120,7 +123,7 @@ class AsyncExchangeConnector(ABC):
             print(response_data)
             await asyncio.sleep(1)
 
-            closed_orders = await self._exchange.fetch_closed_orders(coin)
+            closed_orders = await self._exchange.fetch_closed_orders(order_details['symbol'])
             sorted_by_timestamp = self._exchange.sort_by(closed_orders, 'timestamp', True)
             order = sorted_by_timestamp[0]
             if order is not None:
