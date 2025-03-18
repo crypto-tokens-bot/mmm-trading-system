@@ -21,7 +21,7 @@ def add_event(event_manager_id, event_type, priority, payload, event_id=uuid.uui
     VALUES (%(event_id)s, %(event_manager_id)s, %(event_type)s, %(priority)s, %(payload)s, now())
     """
     execute_query(query, locals())
-    return event_id
+    return str(event_id)
 
 def get_event_by_id(event_id):
     """

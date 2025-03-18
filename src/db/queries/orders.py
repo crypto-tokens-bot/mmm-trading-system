@@ -1,12 +1,13 @@
+import uuid
+
 from src.db.db_connection import execute_query
 
 
-def add_order(order_id, portfolio_id, event_manager_id, signal_id, order_type, order_category, order_side,
-              order_status, base_currency, quote_currency, initial_quantity, target_price):
+def add_order(portfolio_id, event_manager_id, signal_id, order_type, order_category, order_side,
+              order_status, symbol, base_currency, quote_currency, initial_quantity, target_price, parent_order_id=None):
     """
     Inserts a new order into the orders table.
 
-    :param order_id: UUID of the order.
     :param portfolio_id: UUID of the associated portfolio.
     :param event_manager_id: UUID of the event manager handling this order.
     :param signal_id: UUID of the signal that triggered this order.
@@ -19,14 +20,18 @@ def add_order(order_id, portfolio_id, event_manager_id, signal_id, order_type, o
     :param base_currency: Base currency of the order.
     :param quote_currency: Quote currency of the order.
     :param initial_quantity: Initial quantity of the order.
+    :param parent_order_id: UUID of the parent order.
     """
+
+    order_id = uuid.uuid4()
     query = """
-    INSERT INTO orders (order_id, portfolio_id, event_manager_id, signal_id, order_type, order_category, order_side, 
+    INSERT INTO orders (order_id, portfolio_id, event_manager_id, parent_order_id, signal_id, order_type, order_category, order_side, 
                         target_price, order_status, symbol, base_currency, quote_currency, initial_quantity, created_at)
-    VALUES (%(order_id)s, %(portfolio_id)s, %(event_manager_id)s, %(signal_id)s, %(order_type)s, %(order_category)s,
+    VALUES (%(order_id)s, %(portfolio_id)s, %(event_manager_id)s, %(parent_order_id)s, %(signal_id)s, %(order_type)s, %(order_category)s,
             %(order_side)s, %(target_price)s, %(order_status)s, %(symbol)s, %(base_currency)s, %(quote_currency)s, %(initial_quantity)s, now())
     """
     execute_query(query, locals())
+    return str(order_id)
 
 
 def get_order_by_id(order_id):

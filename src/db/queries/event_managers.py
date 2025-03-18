@@ -1,18 +1,21 @@
+import uuid
+
 from src.db.db_connection import execute_query
 
-def add_event_manager(event_manager_id, mode, status):
+def add_event_manager(mode, status):
     """
     Inserts a new event manager into the eventmanager table.
 
-    :param event_manager_id: UUID of the event manager.
     :param mode: Operation mode (live/simulated).
     :param status: Current status of the event manager.
     """
+    event_manager_id = uuid.uuid4()
     query = """
     INSERT INTO event_managers (event_manager_id, mode, status)
     VALUES (%(event_manager_id)s, %(mode)s, %(status)s)
     """
     execute_query(query, locals())
+    return str(event_manager_id)
 
 def get_event_manager_by_id(event_manager_id):
     """

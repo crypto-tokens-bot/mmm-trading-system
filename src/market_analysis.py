@@ -136,9 +136,9 @@ class MarketAnalysis:
                 if self.df is None:
                     raise ValueError("DataFrame is not loaded. Please call get_ohlcv first.")
                 aroon_up = self.df['high'].rolling(window=period).apply(lambda x: x.argmax(), raw=True) / (
-                            period - 1) * 100
+                        period - 1) * 100
                 aroon_down = self.df['low'].rolling(window=period).apply(lambda x: x.argmin(), raw=True) / (
-                            period - 1) * 100
+                        period - 1) * 100
             logger.info("Aroon indicators calculation completed")
             return aroon_up, aroon_down
         except Exception as e:

@@ -132,8 +132,7 @@ class EventManager(threading.Thread):
         :return: Instance of EventManager.
         """
         try:
-            event_manager_id = str(uuid.uuid4())
-            add_event_manager(event_manager_id, mode, "inactive")
+            event_manager_id = add_event_manager(mode, "inactive")
             return EventManager(event_manager_id)
         except Exception as e:
             logger.error(f"Error creating new EventManager: {e}")

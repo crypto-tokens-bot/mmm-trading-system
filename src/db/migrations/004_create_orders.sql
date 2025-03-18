@@ -3,6 +3,7 @@ CREATE TABLE IF NOT EXISTS orders
     order_id UUID,
     portfolio_id UUID NOT NULL,
     event_manager_id UUID NOT NULL,
+    parent_order_id UUID DEFAULT NULL,
     signal_id UUID DEFAULT NULL,
     order_type String NOT NULL,
     order_category String NOT NULL,

@@ -2,7 +2,7 @@ import pytest
 from src.db.queries.events import add_event, get_event_by_id
 from uuid import uuid4
 
-# Generate test UUIDs
+# Generate test UUID
 TEST_EVENT_MANAGER_ID = uuid4()
 
 

@@ -13,7 +13,7 @@ def test_add_event_manager():
     # Check that the event manager is inactive before starting
     db_event_manager = get_event_manager_by_id(event_manager.event_manager_id)
     assert db_event_manager["status"] == "inactive"
-    assert str(db_event_manager["event_manager_id"]) == (event_manager.event_manager_id)
+    assert db_event_manager["event_manager_id"] == event_manager.event_manager_id
 
     event_manager.start()
     time.sleep(1)

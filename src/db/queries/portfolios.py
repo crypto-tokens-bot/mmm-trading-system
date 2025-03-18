@@ -1,10 +1,11 @@
+import uuid
+
 from src.db.db_connection import execute_query
 
-def add_portfolio(portfolio_id, event_manager_id, risk_controller_id, portfolio_name, currency, initial_balance, exchange):
+def add_portfolio(event_manager_id, risk_controller_id, portfolio_name, currency, initial_balance, exchange):
     """
     Inserts a new portfolio into the portfolios table.
 
-    :param portfolio_id: UUID of the portfolio.
     :param event_manager_id: UUID of the associated event manager.
     :param risk_controller_id: UUID of the risk controller linked to this portfolio.
     :param portfolio_name: Name of the portfolio.
@@ -12,11 +13,15 @@ def add_portfolio(portfolio_id, event_manager_id, risk_controller_id, portfolio_
     :param initial_balance: Initial balance of the portfolio.
     :param exchange: Exchange where this portfolio operates.
     """
+
+    portfolio_id = uuid.uuid4()
     query = """
     INSERT INTO portfolios (portfolio_id, event_manager_id, risk_controller_id, portfolio_name, currency, initial_balance, exchange)
     VALUES (%(portfolio_id)s, %(event_manager_id)s, %(risk_controller_id)s, %(portfolio_name)s, %(currency)s, %(initial_balance)s, %(exchange)s)
     """
     execute_query(query, locals())
+    return str(portfolio_id)
+
 
 def get_portfolio_by_id(portfolio_id):
     """
