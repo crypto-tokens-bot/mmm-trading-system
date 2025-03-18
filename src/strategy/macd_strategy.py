@@ -2,13 +2,9 @@ import asyncio
 import os
 from dotenv import load_dotenv
 from datetime import datetime
-from analysis.technical_analysis import TechnicalAnalysis
-from decimal import *
-from exchange.binance_exchange import BinanceExchange
-from exchange.bybit_exchange import BybitExchange
-from manager.order_manager import OrderManager
-from strategy.base_strategy import BaseStrategy
 import time
+
+from src.strategy.base_strategy import BaseStrategy
 
 
 class MACDStrategy(BaseStrategy):

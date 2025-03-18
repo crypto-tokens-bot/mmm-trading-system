@@ -1,9 +1,6 @@
 from abc import ABC, abstractmethod
 import asyncio
-from analysis.technical_analysis import TechnicalAnalysis
 from decimal import *
-from manager.order_manager import OrderManager
-
 
 class BaseStrategy(ABC):
 
