@@ -15,14 +15,12 @@ async def main():
     :return: None
     """
 
-    print(db.get_db_client())
-
     load_dotenv()
     bybit_exchange = BybitAsyncConnector(api_key=os.getenv('BYBIT_API_KEY'), api_secret=os.getenv('BYBIT_API_SECRET'),
                                          testnet=True)
 
-    print(bybit_exchange._exchange.timeframes)
-    print(await bybit_exchange.fetch_ohlcv('BTC/USDT', timeframe='1m'))
+    await bybit_exchange.create_buy_order('72f8c4fd-562a-4fee-8d5a-7081a443733d')
+
     await bybit_exchange.close()
 
 
