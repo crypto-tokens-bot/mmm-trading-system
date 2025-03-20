@@ -14,7 +14,6 @@ def execute_query(query, params=None):
     :param params: Dictionary of query parameters (optional).
     :return: List of dictionaries where each row is {column_name: value}.
     """
-    print(query, params)
     # Execute query
     result = get_db_client().query(query, parameters=params)
     # Get column names

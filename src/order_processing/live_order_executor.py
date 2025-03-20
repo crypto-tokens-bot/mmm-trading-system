@@ -1,7 +1,10 @@
 import threading
 import time
 import logging
-from order_executor import OrderExecutor
+
+from src.connectors.bybit_connector import BybitAsyncConnector
+from src.db.queries.orders import get_order_by_id
+from src.order_processing.order_executor import OrderExecutor
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -22,18 +25,16 @@ class LiveOrderExecutor(OrderExecutor):
                 cls._instance = super(LiveOrderExecutor, cls).__new__(cls)
             return cls._instance
 
-    def __init__(self, exchanges: dict, event_manager):
+    def __init__(self, exchanges: dict):
         """
         Initialize the LiveOrderExecutor.
 
         :param exchanges: A dictionary mapping exchange names (str) to exchange objects.
-        :param event_manager: An instance of the EventManager used for event publishing.
         """
         # Prevent re-initialization in a singleton
         if hasattr(self, "_initialized") and self._initialized:
             return
         self.exchanges = exchanges
-        self.event_manager = event_manager
         self._lock = threading.Lock()
         # Dictionary mapping order_id to order data for orders currently executing.
         self._executing_orders = {}
@@ -53,8 +54,7 @@ class LiveOrderExecutor(OrderExecutor):
         """
         with self._lock:
             try:
-                # Retrieve the order details from the database.
-                order = self._get_order_by_id(order_id)
+                order = get_order_by_id(order_id)
                 if order is None:
                     raise ValueError(f"Order {order_id} not found.")
 
@@ -62,7 +62,7 @@ class LiveOrderExecutor(OrderExecutor):
                 if exchange_name not in self.exchanges:
                     raise ValueError(f"Exchange '{exchange_name}' not available for order {order_id}.")
 
-                exchange = self.exchanges[exchange_name]
+                exchange = BybitAsyncConnector()
                 # Place the order on the exchange.
                 if not exchange.place_order(order):
                     raise Exception(f"Order placement failed on exchange {exchange_name} for order {order_id}.")

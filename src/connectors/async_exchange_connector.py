@@ -11,8 +11,8 @@ import pandas as pd
 
 from src.db.queries.orders import get_order_by_id
 
-logger.add("../../logs/exchange.log", rotation="10 MB", level="INFO", format="{time} - {level} - {message}")
-
+# Configure logger to write logs into logs folder
+logger.add(f"../../logs/testing.log", level="INFO")
 
 class AsyncExchangeConnector(ABC):
     """
@@ -119,11 +119,15 @@ class AsyncExchangeConnector(ABC):
         try:
             # Retrieve order details from the database.
             order_details = get_order_by_id(order_id)[0]
+
             response_data = await self.create_order(order_details['symbol'], order_details['order_type'], order_details['order_side'], order_details['initial_quantity'])
             print(response_data)
+            print(response_data['info']['orderId'])
+            await asyncio.sleep(3)
+            print(await self._exchange.fetchOpenOrder(response_data['info']['orderId']))
             await asyncio.sleep(1)
-
-            closed_orders = await self._exchange.fetch_closed_orders(order_details['symbol'])
+            closed_orders = await self._exchange.fetch_canceled_orders(order_details['symbol'])
+            print(closed_orders)
             sorted_by_timestamp = self._exchange.sort_by(closed_orders, 'timestamp', True)
             order = sorted_by_timestamp[0]
             if order is not None:
@@ -201,3 +205,9 @@ class AsyncExchangeConnector(ABC):
         This method should be called to properly clean up resources when the connector is no longer needed.
         """
         await self._exchange.close()
+
+    # def __del__(self):
+    #     logger.info("before")
+    #     print("before close")
+    #     asyncio.run(self.close())
+    #     print("after close")

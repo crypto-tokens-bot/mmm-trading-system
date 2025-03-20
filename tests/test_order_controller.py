@@ -86,7 +86,7 @@ def test_create_order_with_stop_loss_and_take_profit():
         symbol="BTCUSDT",
         base_currency="BTC",
         quote_currency="USDT",
-        initial_quantity=Decimal("1"),
+        initial_quantity=Decimal("0.001"),
         event_manager=my_event_manager,
         stop_loss=Decimal("48000"),
         take_profit=Decimal("52000")

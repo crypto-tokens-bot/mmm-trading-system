@@ -1,12 +1,17 @@
+import os
 import time
 import threading
 import uuid
 from loguru import logger
+
+from src.connectors.bybit_connector import BybitAsyncConnector
 from src.db.queries.events import get_next_event, mark_event_as_processed
 from src.db.queries.event_managers import add_event_manager, update_event_manager_status
+from src.order_processing.live_order_executor import LiveOrderExecutor
+from src.order_processing.order_controller import OrderController
 
 # Configure logger to write logs into logs folder
-logger.add(f"../logs/event_managers.log", level="INFO")
+logger.add(f"../logs/testing.log", level="INFO")
 
 
 class EventManager(threading.Thread):
@@ -25,6 +30,11 @@ class EventManager(threading.Thread):
         """
         super().__init__()
         self.event_manager_id = event_manager_id
+        self._order_controller = OrderController()
+        bybit_exchange = BybitAsyncConnector(api_key=os.getenv('BYBIT_API_KEY'),
+                                             api_secret=os.getenv('BYBIT_API_SECRET'),
+                                             testnet=True)
+        self._order_executor = LiveOrderExecutor(exchanges={'bybit': bybit_exchange})
         self.running = False
 
         logger.info(f"EventManager {self.event_manager_id} initialized.")
@@ -60,7 +70,6 @@ class EventManager(threading.Thread):
         try:
             logger.info(
                 f"EventManager {self.event_manager_id}: Handling event {event['event_id']} of type {event['event_type']}")
-
             if event['event_type'] == "market":
                 pass
             elif event['event_type'] == "order":
