@@ -1,3 +1,4 @@
+import asyncio
 import threading
 import time
 import logging
@@ -67,14 +68,13 @@ class LiveOrderExecutor(OrderExecutor):
                 raise ValueError(f"Order {order_id} not found.")
 
             # Use the appropriate exchange connector (here hardcoded as Bybit for now)
-            exchange = BybitAsyncConnector()
+            exchange = self.exchanges['bybit']
 
-            print(order)
             if order['order_category'] == 'spot':
-                if not exchange.create_spot_order(order):
+                result = asyncio.run(exchange.create_spot_order(order_id))
+                if not result:
                     raise Exception(f"Order placement failed for order {order_id}.")
                 update_order_status(order_id, "executing")
-
             # Add order to the queue
             self._order_queue.put(order_id)
             logger.info(f"Order {order_id} is now executing.")
@@ -99,8 +99,7 @@ class LiveOrderExecutor(OrderExecutor):
                 #     logger.error(f"Exchange '{exchange_name}' not found for order {order_id}.")
                 #     continue
 
-                exchange = BybitAsyncConnector()
-
+                exchange = self.exchanges['bybit']
                 # status = exchange.check_order_status(order)
                 status = "executed"
                 if status == "executed":

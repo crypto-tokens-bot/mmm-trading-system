@@ -119,15 +119,8 @@ class AsyncExchangeConnector(ABC):
         try:
             # Retrieve order details from the database.
             order_details = get_order_by_id(order_id)[0]
-
             response_data = await self.create_order(order_details['symbol'], order_details['order_type'], order_details['order_side'], order_details['initial_quantity'])
-            print(response_data)
-            print(response_data['info']['orderId'])
-            await asyncio.sleep(3)
-            print(await self._exchange.fetchOpenOrder(response_data['info']['orderId']))
-            await asyncio.sleep(1)
             closed_orders = await self._exchange.fetch_canceled_orders(order_details['symbol'])
-            print(closed_orders)
             sorted_by_timestamp = self._exchange.sort_by(closed_orders, 'timestamp', True)
             order = sorted_by_timestamp[0]
             if order is not None:
@@ -136,7 +129,7 @@ class AsyncExchangeConnector(ABC):
             else:
                 raise Exception("No closed orders found.")
         except Exception as e:
-            logger.error(f"Failed to create market buy order for order_id {order_id}: {e}")
+            logger.error(f"Failed to create spot order for order_id {order_id}: {e}")
             raise
 
 

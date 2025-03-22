@@ -28,10 +28,10 @@ async def create_fake_orders():
         order_side="buy",
         target_price=Decimal("50000"),
         order_status="pending",
-        symbol="BTCUSD",
+        symbol="BTCUSDT",
         base_currency="BTC",
-        quote_currency="USD",
-        initial_quantity=Decimal("0.0001"),
+        quote_currency="USDT",
+        initial_quantity=Decimal("0.001"),
         event_manager=event_manager
     )
 

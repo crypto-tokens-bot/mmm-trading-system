@@ -42,6 +42,7 @@ def get_order_by_id(order_id):
     :param order_id: UUID of the order to fetch.
     :return: Order details as a tuple.
     """
+    order_id = str(order_id)
     query = "SELECT * FROM orders WHERE order_id = %(order_id)s"
     return execute_query(query, {"order_id": order_id})
 
