@@ -4,7 +4,8 @@ from src.db.db_connection import execute_query
 
 
 def add_order(portfolio_id, event_manager_id, signal_id, order_type, order_category, order_side,
-              order_status, symbol, base_currency, quote_currency, initial_quantity, target_price, parent_order_id=None):
+              order_status, symbol, base_currency, quote_currency, initial_quantity, target_price,
+              parent_order_id=None):
     """
     Inserts a new order into the orders table.
 
@@ -43,3 +44,29 @@ def get_order_by_id(order_id):
     """
     query = "SELECT * FROM orders WHERE order_id = %(order_id)s"
     return execute_query(query, {"order_id": order_id})
+
+
+def update_order_status(order_id, status):
+    """
+        Updates the status and timestamps of an order.
+
+        :param order_id: UUID of the order to update.
+        :param status: New status of the order.
+    """
+    query = """
+    ALTER TABLE orders 
+    UPDATE 
+        order_status = %(status)s,
+        updated_at = now()
+    WHERE order_id = %(order_id)s
+    """
+    execute_query(query, {"order_id": order_id, "status": status})
+
+
+def get_executing_orders():
+    query = """
+    SELECT order_id 
+    FROM orders 
+    WHERE order_status = 'executing'
+    """
+    return execute_query(query)

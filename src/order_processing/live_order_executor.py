@@ -1,9 +1,10 @@
 import threading
 import time
 import logging
+from queue import Queue
 
 from src.connectors.bybit_connector import BybitAsyncConnector
-from src.db.queries.orders import get_order_by_id
+from src.db.queries.orders import get_order_by_id, get_executing_orders, update_order_status
 from src.order_processing.order_executor import OrderExecutor
 
 # Configure logging
@@ -14,6 +15,7 @@ logging.basicConfig(level=logging.INFO)
 class LiveOrderExecutor(OrderExecutor):
     """
     LiveOrderExecutor executes orders on live exchanges.
+    Implements a singleton pattern and uses a thread-safe queue to track executing orders.
     """
 
     _instance = None
@@ -31,81 +33,86 @@ class LiveOrderExecutor(OrderExecutor):
 
         :param exchanges: A dictionary mapping exchange names (str) to exchange objects.
         """
-        # Prevent re-initialization in a singleton
         if hasattr(self, "_initialized") and self._initialized:
             return
+
         self.exchanges = exchanges
+        self._order_queue = Queue()
         self._lock = threading.Lock()
-        # Dictionary mapping order_id to order data for orders currently executing.
-        self._executing_orders = {}
-        # Start the background monitoring thread.
+
+        # Re-queue all currently executing orders
+        executing_orders = get_executing_orders()
+        for order in executing_orders:
+            self._order_queue.put(order["order_id"])
+        logger.info(f"Restored {len(executing_orders)} executing orders into queue.")
+
+        # Start monitoring thread
         self._monitor_thread = threading.Thread(target=self._monitor_executing_orders, daemon=True)
         self._monitor_thread.start()
+
         self._initialized = True
         logger.info("LiveOrderExecutor initialized and monitoring thread started.")
 
     def execute_order(self, order_id: str):
         """
-        Thread-safely executes an order.
+        Executes an order by placing it on the exchange and adding it to the monitoring queue.
 
         :param order_id: Unique identifier of the order to execute.
         :raises ValueError: If the order is not found or the required exchange is unavailable.
-        :raises Exception: For any failures during the execution process.
+        :raises Exception: For any failures during execution.
         """
-        with self._lock:
-            try:
-                order = get_order_by_id(order_id)
-                if order is None:
-                    raise ValueError(f"Order {order_id} not found.")
+        try:
+            order = get_order_by_id(order_id)[0]
+            if order is None:
+                raise ValueError(f"Order {order_id} not found.")
 
-                exchange_name = order.get("exchange")
-                if exchange_name not in self.exchanges:
-                    raise ValueError(f"Exchange '{exchange_name}' not available for order {order_id}.")
+            # Use the appropriate exchange connector (here hardcoded as Bybit for now)
+            exchange = BybitAsyncConnector()
 
-                exchange = BybitAsyncConnector()
-                # Place the order on the exchange.
-                if not exchange.place_order(order):
-                    raise Exception(f"Order placement failed on exchange {exchange_name} for order {order_id}.")
+            print(order)
+            if order['order_category'] == 'spot':
+                if not exchange.create_spot_order(order):
+                    raise Exception(f"Order placement failed for order {order_id}.")
+                update_order_status(order_id, "executing")
 
-                # Update the order status to 'executing' in the database.
-                self._update_order_status(order_id, "executing")
-                order["order_status"] = "executing"
-                # Add the order to the monitoring list.
-                self._executing_orders[order_id] = order
-
-                # Publish an event that order execution has started.
-                self.event_manager.publish_event("OrderExecuting", {"order_id": order_id, "order_status": "executing"})
-                logger.info(f"Order {order_id} is now executing on exchange {exchange_name}.")
-            except Exception as e:
-                logger.exception("Error executing order %s: %s", order_id, e)
-                raise
+            # Add order to the queue
+            self._order_queue.put(order_id)
+            logger.info(f"Order {order_id} is now executing.")
+        except Exception as e:
+            logger.exception("Error executing order %s: %s", order_id, e)
+            raise
 
     def _monitor_executing_orders(self):
         """
-        Background thread method that continuously monitors orders with the 'executing' status.
+        Background thread method that continuously monitors executing orders.
         """
         while True:
-            time.sleep(1)  # Polling interval
-            with self._lock:
-                executed_orders = []
-                for order_id, order in list(self._executing_orders.items()):
-                    exchange_name = order.get("exchange")
-                    if exchange_name not in self.exchanges:
-                        logger.error(f"Exchange '{exchange_name}' not found during monitoring of order {order_id}.")
-                        continue
-                    exchange = self.exchanges[exchange_name]
-                    try:
-                        current_status = exchange.check_order_status(order)
-                        if current_status == "executed":
-                            # Update the order status in the database.
-                            self._update_order_status(order_id, "executed")
-                            order["order_status"] = "executed"
-                            self.event_manager.publish_event("OrderExecuted",
-                                                             {"order_id": order_id, "order_status": "executed"})
-                            logger.info(f"Order {order_id} executed on exchange {exchange_name}.")
-                            executed_orders.append(order_id)
-                    except Exception as e:
-                        logger.exception("Error while monitoring order %s: %s", order_id, e)
-                # Remove executed orders from the monitoring list.
-                for order_id in executed_orders:
-                    self._executing_orders.pop(order_id, None)
+            try:
+                order_id = self._order_queue.get()  # Blocks until an order is available
+                order = get_order_by_id(order_id)[0]
+                if order is None:
+                    logger.warning(f"Order {order_id} not found during monitoring.")
+                    continue
+
+                # exchange_name = order.get("exchange")
+                # if exchange_name not in self.exchanges:
+                #     logger.error(f"Exchange '{exchange_name}' not found for order {order_id}.")
+                #     continue
+
+                exchange = BybitAsyncConnector()
+
+                # status = exchange.check_order_status(order)
+                status = "executed"
+                if status == "executed":
+                    update_order_status(order_id, "executed")
+                    # self.event_manager.publish_event("OrderExecuted", {
+                    #     "order_id": order_id,
+                    #     "order_status": "executed"
+                    # })
+                    logger.info(f"Order {order_id} executed.")
+                else:
+                    # Re-queue the order if still pending
+                    self._order_queue.put(order_id)
+            except Exception as e:
+                logger.exception(f"Error while monitoring order {order_id}: {e}")
+                self._order_queue.put(order_id)  # Retry later

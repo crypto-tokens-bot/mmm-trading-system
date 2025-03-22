@@ -1,3 +1,4 @@
+import json
 import os
 import time
 import threading
@@ -70,8 +71,8 @@ class EventManager(threading.Thread):
         try:
             logger.info(
                 f"EventManager {self.event_manager_id}: Handling event {event['event_id']} of type {event['event_type']}")
-            if event['event_type'] == "market":
-                pass
+            if event['event_type'] == "OrderPlacementEvent":
+                self._order_executor.execute_order(json.loads(event['payload'])['order_id'])
             elif event['event_type'] == "order":
                 pass
             elif event['event_type'] == "signal":
