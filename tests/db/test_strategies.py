@@ -12,7 +12,6 @@ def test_add_and_get_strategy():
         event_manager_id=TEST_EVENT_MANAGER_ID,
         trading_pair="BTC/USDT",
         strategy_name="Test Strategy",
-        status="active",
         parameters="{}"
     )
 

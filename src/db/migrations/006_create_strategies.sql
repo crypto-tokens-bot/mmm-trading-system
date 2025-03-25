@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS strategies
     event_manager_id UUID NOT NULL,
     trading_pair String NOT NULL,
     strategy_name String NOT NULL,
-    status String NOT NULL,
+    status String DEFAULT 'inactive',
     parameters String NOT NULL,
     started_at DateTime DEFAULT NULL,
     stopped_at DateTime DEFAULT NULL,
