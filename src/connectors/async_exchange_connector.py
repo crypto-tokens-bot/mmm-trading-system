@@ -1,5 +1,6 @@
 import asyncio
 import json
+import time
 
 import ccxt.async_support as ccxt
 from abc import ABC, abstractmethod
@@ -120,6 +121,8 @@ class AsyncExchangeConnector(ABC):
             # Retrieve order details from the database.
             order_details = get_order_by_id(order_id)[0]
             response_data = await self.create_order(order_details['symbol'], order_details['order_type'], order_details['order_side'], order_details['initial_quantity'])
+            print(response_data)
+            time.sleep(2)
             closed_orders = await self._exchange.fetch_canceled_orders(order_details['symbol'])
             sorted_by_timestamp = self._exchange.sort_by(closed_orders, 'timestamp', True)
             order = sorted_by_timestamp[0]
