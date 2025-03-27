@@ -8,6 +8,7 @@ from loguru import logger
 from src.connectors.bybit_connector import BybitAsyncConnector
 from src.db.queries.events import get_next_event, mark_event_as_processed
 from src.db.queries.event_managers import add_event_manager, update_event_manager_status
+from src.db.queries.strategy_subscriptions import add_strategy_subscription
 from src.order_processing.live_order_executor import LiveOrderExecutor
 from src.order_processing.order_controller import OrderController
 
@@ -37,6 +38,7 @@ class EventManager(threading.Thread):
                                              testnet=True)
         self._order_executor = LiveOrderExecutor(exchanges={'bybit': bybit_exchange})
         self.running = False
+        self._strategy_subscriptions = {}
 
         logger.info(f"EventManager {self.event_manager_id} initialized.")
 
@@ -59,6 +61,23 @@ class EventManager(threading.Thread):
             logger.error(f"Error fetching next event for EventManager {self.event_manager_id}: {e}")
             return None
 
+    def subscribe_portfolio_to_strategy(self, portfolio, strategy_id):
+        """
+        Subscribes a portfolio to a strategy: updates in-memory structure and database table.
+
+        :param portfolio:
+        :param strategy_id: ID of the strategy.
+        """
+        if strategy_id not in self._strategy_subscriptions:
+            self._strategy_subscriptions[strategy_id] = []
+
+        if portfolio.portfolio_id not in self._strategy_subscriptions[strategy_id]:
+            self._strategy_subscriptions[strategy_id].append(portfolio)
+            add_strategy_subscription(portfolio.portfolio_id, strategy_id)
+            logger.info(f"Portfolio {portfolio.portfolio_id} subscribed to strategy {strategy_id}")
+        else:
+            logger.warning(f"Portfolio {portfolio.portfolio_id} is already subscribed to strategy {strategy_id}")
+
     def _handle_event(self, event):
         """
         Processes the given event and updates its status in the database.
@@ -75,8 +94,18 @@ class EventManager(threading.Thread):
                 self._order_executor.execute_order(json.loads(event['payload'])['order_id'])
             elif event['event_type'] == "order":
                 pass
-            elif event['event_type'] == "signal":
-                pass
+            elif event['event_type'] == "SignalEvent":
+                strategy_id = json.loads(event['payload'])['strategy_id']
+                if not strategy_id:
+                    logger.warning("SignalEvent missing strategy_id in payload")
+                    return
+
+                subscribed_portfolios = self._strategy_subscriptions[strategy_id]
+                for portfolio in subscribed_portfolios:
+                    try:
+                        portfolio.handle_signal_event(event)
+                    except Exception as e:
+                        logger.error(f"Failed to notify portfolio {portfolio.portfolio_id}: {e}")
             elif event['event_type'] == "error":
                 pass
             else:

@@ -19,3 +19,7 @@ class BybitAsyncConnector(AsyncExchangeConnector):
         :param testnet: If True, enables sandbox mode (if supported by Bybit).
         """
         super().__init__(exchange=ccxt.bybit, api_key=api_key, api_secret=api_secret, testnet=testnet)
+        self._exchange.options['recvWindow'] = 10000
+        self._exchange.options['adjustForTimeDifference'] = True
+        self._exchange.load_time_difference()
+

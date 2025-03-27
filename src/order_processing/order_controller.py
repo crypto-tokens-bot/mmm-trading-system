@@ -40,7 +40,6 @@ class OrderController:
         base_currency: str,
         quote_currency: str,
         initial_quantity: Decimal,
-        event_manager: Any,
         stop_loss: Optional[Decimal] = None,
         take_profit: Optional[Decimal] = None
     ) -> List[str]:
@@ -59,7 +58,6 @@ class OrderController:
         :param base_currency: Base currency of the trade, e.g., 'BTC'.
         :param quote_currency: Quote currency of the trade, e.g., 'USD'.
         :param initial_quantity: Amount of the asset to be traded.
-        :param event_manager: An instance of EventManager used to handle events related to the order.
         :param stop_loss: Optional. Price at which a stop-loss order should trigger to limit loss.
         :param take_profit: Optional. Price at which a take-profit order should trigger to secure profits.
 
@@ -71,11 +69,11 @@ class OrderController:
             add_event(event_manager_id, "OrderPlacementEvent", 1, {"order_id": main_order_id})
 
             if stop_loss is not None:
-                stop_loss_order_id = self._create_stop_loss_order(main_order_id, portfolio_id, event_manager_id, signal_id, order_category, order_status, symbol, base_currency, quote_currency, initial_quantity, stop_loss, event_manager, order_side)
+                stop_loss_order_id = self._create_stop_loss_order(main_order_id, portfolio_id, event_manager_id, signal_id, order_category, order_status, symbol, base_currency, quote_currency, initial_quantity, stop_loss, order_side)
                 created_order_ids.append(stop_loss_order_id)
 
             if take_profit is not None:
-                take_profit_order_id = self._create_take_profit_order(main_order_id, portfolio_id, event_manager_id, signal_id, order_category, order_status, symbol, base_currency, quote_currency, initial_quantity, take_profit, event_manager, order_side)
+                take_profit_order_id = self._create_take_profit_order(main_order_id, portfolio_id, event_manager_id, signal_id, order_category, order_status, symbol, base_currency, quote_currency, initial_quantity, take_profit, order_side)
                 created_order_ids.append(take_profit_order_id)
 
             return created_order_ids
@@ -84,7 +82,7 @@ class OrderController:
             logger.exception("Failed to create order: %s", e)
             raise
 
-    def _create_stop_loss_order(self, parent_order_id, portfolio_id, event_manager_id, signal_id, order_category, order_status, symbol, base_currency, quote_currency, initial_quantity, stop_loss_price, event_manager, order_side):
+    def _create_stop_loss_order(self, parent_order_id, portfolio_id, event_manager_id, signal_id, order_category, order_status, symbol, base_currency, quote_currency, initial_quantity, stop_loss_price, order_side):
         """
         Creates a stop-loss order linked to a parent order. The stop-loss order will have the opposite side of the main order.
 
@@ -97,7 +95,7 @@ class OrderController:
         add_event(event_manager_id, "OrderPlacementEvent", 1, {"order_id": stop_loss_order_id})
         return stop_loss_order_id
 
-    def _create_take_profit_order(self, parent_order_id, portfolio_id, event_manager_id, signal_id, order_category, order_status, symbol, base_currency, quote_currency, initial_quantity, take_profit_price, event_manager, order_side):
+    def _create_take_profit_order(self, parent_order_id, portfolio_id, event_manager_id, signal_id, order_category, order_status, symbol, base_currency, quote_currency, initial_quantity, take_profit_price, order_side):
         """
         Creates a take-profit order linked to a parent order. The take-profit order will have the opposite side of the main order.
 
