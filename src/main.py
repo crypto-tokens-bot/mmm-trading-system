@@ -30,7 +30,7 @@ async def create_fake_orders():
         order_type="market",
         order_category="spot",
         order_side="buy",
-        target_price=Decimal("50000"),
+        target_price=Decimal("30000"),
         order_status="pending",
         symbol="BTC/USDT",
         base_currency="BTC",

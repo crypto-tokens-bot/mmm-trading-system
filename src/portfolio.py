@@ -76,7 +76,7 @@ class Portfolio:
             order_type='market',
             order_category='spot',
             order_side=direction,
-            target_price=Decimal("50000"),
+            target_price=Decimal("40000"),
             order_status="pending",
             symbol="BTC/USDT",
             base_currency="BTC",
