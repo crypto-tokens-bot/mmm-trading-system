@@ -8,8 +8,9 @@ from decimal import Decimal
 
 from loguru import logger
 
-from src.connectors.bybit_connector import BybitAsyncConnector
+from src.connectors.bybit_connector import BybitConnector
 from src.event_manager import EventManager
+from src.market_data_provider import MarketDataProvider
 from src.order_processing.live_order_executor import LiveOrderExecutor
 from src.order_processing.order_controller import OrderController
 from src.order_processing.order_executor import OrderExecutor
@@ -50,6 +51,7 @@ async def create_fake_strategy():
     strategy.stop()
     event_manager.stop()
 
+
 async def create_fake_portfolio():
     event_manager = EventManager.create_new(mode="live")
     event_manager.start()
@@ -73,7 +75,25 @@ async def create_fake_portfolio():
     event_manager.stop()
 
 
+def create_fake_market_data_provider():
+    market = MarketDataProvider(BybitConnector(testnet=True))
+    event_manager = EventManager.create_new(mode="live")
+    event_manager.start()
+    strategy1 = AbstractStrategy.create_strategy(RandomStrategy, event_manager.event_manager_id, "BTC/USDT", "Random",
+                                                {})
+    strategy2 = AbstractStrategy.create_strategy(RandomStrategy, event_manager.event_manager_id, "BTC/USDT", "Random",
+                                                {})
+    strategy1.start()
+    market.subscribe(strategy1, strategy1.trading_pair, '1m')
+    market.subscribe(strategy2, strategy2.trading_pair, '1h')
+    time.sleep(30)
+    market.stop()
+    strategy1.stop()
+    strategy2.stop()
+    event_manager.stop()
+
+
 if __name__ == "__main__":
     if sys.platform == 'win32':
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-    asyncio.run(create_fake_portfolio())
+    create_fake_market_data_provider()

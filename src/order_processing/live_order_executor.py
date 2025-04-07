@@ -4,7 +4,7 @@ import time
 import logging
 from queue import Queue
 
-from src.connectors.bybit_connector import BybitAsyncConnector
+from src.connectors.bybit_connector import BybitConnector
 from src.db.queries.orders import get_order_by_id, get_executing_orders, update_order_status
 from src.order_processing.order_executor import OrderExecutor
 

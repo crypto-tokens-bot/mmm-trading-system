@@ -1,25 +1,78 @@
 import asyncio
-from typing import Dict, List, Tuple
+import threading
+import time
+from pathlib import Path
+from typing import Dict, List, Tuple, Optional
+from loguru import logger
+import os
+from src.connectors.exchange_connector import ExchangeConnector
 
-from src.connectors.async_exchange_connector import AsyncExchangeConnector
+import asyncio
+from typing import Dict, List, Tuple, Optional
+from threading import Thread
+from loguru import logger
+
+from src.connectors.exchange_connector import ExchangeConnector
 
 
-class MarketDataProvider:
+class MarketDataProvider(threading.Thread):
     """
-    Market Data Provider that fetches market data, saves it to a file, and notifies subscribed strategies.
+    Market Data Provider that automatically starts fetching market data,
+    saves it to files, and notifies subscribed strategies.
+    Implemented as a Singleton to ensure only one instance exists.
     """
+    _instance = None
 
-    def __init__(self, exchange_connector: AsyncExchangeConnector, data_directory: str = "data"):
+    def __new__(cls, *args, **kwargs):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._instance._initialized = False
+        return cls._instance
+
+    def __init__(self, exchange_connector: ExchangeConnector, data_directory: str = "market_data_test"):
         """
-        Initializes the market data provider.
+        Initializes and automatically starts the market data provider.
 
-        :param exchange_connector: Instance of an async exchange connector.
+        :param exchange_connector: Instance of an async exchange connector (required).
         :param data_directory: Directory where the data will be stored.
         """
+        if self._initialized:
+            return
+
+        if exchange_connector is None:
+            raise ValueError("Exchange connector must be provided")
+
+        super().__init__()
         self.exchange_connector = exchange_connector
         self.data_directory = data_directory
-        self.subscribers: Dict[Tuple[str, str], List] = {}  # {(symbol, timeframe): [strategy1, strategy2]}
-        self.pairs = set()  # Set of (symbol, timeframe) to track active data requests
+        self.subscribers: Dict[Tuple[str, str], List] = {}
+        self.pairs = set()
+        self._running = True
+        super().start()
+        self._initialized = True
+
+        logger.debug("MarketDataProvider initialized and started with data directory: {}", data_directory)
+
+    def run(self):
+        """Main data fetching loop."""
+        logger.debug("Starting market data fetching loop")
+        while self._running:
+            try:
+                for symbol, timeframe in self.pairs.copy():
+                    if not self._running:
+                        break
+                    self.fetch_and_store_data(symbol, timeframe)
+                time.sleep(5)
+            except Exception as e:
+                logger.error("Error in data fetching loop: {}", e)
+
+    def stop(self):
+        """Stops the market data provider."""
+        try:
+            self._running = False
+            logger.info(f"MarketDataProvider is shutting down.")
+        except Exception as e:
+            logger.error(f"Error stopping MarketDataProvider: {e}")
 
     def subscribe(self, strategy, symbol: str, timeframe: str):
         """
@@ -32,8 +85,11 @@ class MarketDataProvider:
         key = (symbol, timeframe)
         if key not in self.subscribers:
             self.subscribers[key] = []
+            logger.debug("New subscription key created: {}", key)
+
         self.subscribers[key].append(strategy)
         self.pairs.add(key)  # Track the pair for automatic fetching
+        logger.debug(f"Strategy subscribed to {symbol} {timeframe}")
 
     def unsubscribe(self, strategy, symbol: str, timeframe: str):
         """
@@ -46,20 +102,14 @@ class MarketDataProvider:
         key = (symbol, timeframe)
         if key in self.subscribers:
             self.subscribers[key].remove(strategy)
+            logger.debug("Strategy unsubscribed from {} {}", symbol, timeframe)
+
             if not self.subscribers[key]:  # If no more subscribers, remove the key
                 del self.subscribers[key]
                 self.pairs.discard(key)
+                logger.info("No more subscribers for {} {}, removing from tracking", symbol, timeframe)
 
-    async def run(self):
-        """
-        Continuously fetches market data for all subscribed pairs in a round-robin fashion.
-        """
-        while True:
-            for symbol, timeframe in self.pairs.copy():  # Iterate through all active pairs
-                await self.fetch_and_store_data(symbol, timeframe)
-                await asyncio.sleep(1)  # Short delay between requests to avoid rate limits
-
-    async def fetch_and_store_data(self, symbol: str, timeframe: str, limit: int = 100):
+    def fetch_and_store_data(self, symbol: str, timeframe: str, limit: int = 1000):
         """
         Fetches historical OHLCV data, saves it as a CSV file, and notifies subscribed strategies.
 
@@ -68,16 +118,18 @@ class MarketDataProvider:
         :param limit: Maximum number of candles to fetch (default: 100).
         """
         try:
-            df = await self.exchange_connector.fetch_ohlcv(symbol, timeframe, limit=limit)
-            file_path = f"{self.data_directory}/{symbol.replace('/', '_')}_{timeframe}.csv"
-            df.to_csv(file_path, index=False)
-            print(f"📁 Data saved to {file_path}")
+            logger.debug("Fetching data for {} {} (limit: {})", symbol, timeframe, limit)
+            df = self.exchange_connector.fetch_ohlcv(symbol, timeframe, limit=limit)
 
-            # Notify subscribed strategies (fire-and-forget approach)
-            self.notify_subscribers(symbol, timeframe, file_path)
+            file_path = Path(f"{self.data_directory}/{symbol.replace('/', '_')}_{timeframe}.csv")
+            file_path.parent.mkdir(parents=True, exist_ok=True)
+            df.to_csv(file_path, index=False)
+            logger.success("Data saved to {}", file_path)
+
+            self.notify_subscribers(symbol, timeframe, file_path.name)
 
         except Exception as e:
-            print(f"❌ Error fetching data for {symbol} {timeframe}: {e}")
+            logger.error("Error fetching data for {} {}: {}", symbol, timeframe, e)
 
     def notify_subscribers(self, symbol: str, timeframe: str, file_path: str):
         """
@@ -89,5 +141,14 @@ class MarketDataProvider:
         """
         key = (symbol, timeframe)
         if key in self.subscribers:
+            logger.debug("Notifying {} subscribers about new data for {} {}",
+                         len(self.subscribers[key]), symbol, timeframe)
             for strategy in self.subscribers[key]:
-                asyncio.create_task(strategy.on_new_data(file_path))  # Fire-and-forget
+                try:
+                    strategy.on_new_data(file_path)
+                except Exception as e:
+                    logger.error("Error notifying strategy about new data: {}", e)
+
+    def __del__(self):
+        """Ensures proper cleanup when the object is destroyed."""
+        self.stop()

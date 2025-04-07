@@ -5,7 +5,7 @@ import threading
 import uuid
 from loguru import logger
 
-from src.connectors.bybit_connector import BybitAsyncConnector
+from src.connectors.bybit_connector import BybitConnector
 from src.db.queries.events import get_next_event, mark_event_as_processed
 from src.db.queries.event_managers import add_event_manager, update_event_manager_status
 from src.db.queries.strategy_subscriptions import add_strategy_subscription
@@ -33,9 +33,7 @@ class EventManager(threading.Thread):
         super().__init__()
         self.event_manager_id = event_manager_id
         self._order_controller = OrderController()
-        bybit_exchange = BybitAsyncConnector(api_key=os.getenv('BYBIT_API_KEY'),
-                                             api_secret=os.getenv('BYBIT_API_SECRET'),
-                                             testnet=True)
+        bybit_exchange = BybitConnector(testnet=True)
         self._order_executor = LiveOrderExecutor(exchanges={'bybit': bybit_exchange})
         self.running = False
         self._strategy_subscriptions = {}
@@ -157,6 +155,7 @@ class EventManager(threading.Thread):
         """
         try:
             self.running = False
+
             logger.info(f"EventManager {self.event_manager_id} is shutting down.")
         except Exception as e:
             logger.error(f"Error stopping EventManager {self.event_manager_id}: {e}")

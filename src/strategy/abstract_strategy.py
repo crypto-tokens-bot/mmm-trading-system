@@ -44,6 +44,9 @@ class AbstractStrategy(ABC):
         update_strategy_status(self.strategy_id, "inactive")
         logger.info(f"[{self.strategy_name}] Strategy stopped.")
 
+    def on_new_data(self, file_path: str):
+        logger.info(f"[{self.strategy_name}] signal from market data.")
+
     def _run_loop(self):
         """
         Main strategy loop, periodically checks for entry and exit signals.
@@ -51,7 +54,7 @@ class AbstractStrategy(ABC):
         while self._running:
             self.check_entry_signal()
             self.check_exit_signal()
-            time.sleep(self.parameters.get("interval", 5))
+            time.sleep(5)
 
     def _generate_signal_event(self, direction: str):
         """
