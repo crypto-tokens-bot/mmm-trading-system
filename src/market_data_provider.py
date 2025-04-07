@@ -1,4 +1,3 @@
-import asyncio
 import threading
 import time
 from pathlib import Path
@@ -7,7 +6,6 @@ from loguru import logger
 import os
 from src.connectors.exchange_connector import ExchangeConnector
 
-import asyncio
 from typing import Dict, List, Tuple, Optional
 from threading import Thread
 from loguru import logger
@@ -33,7 +31,7 @@ class MarketDataProvider(threading.Thread):
         """
         Initializes and automatically starts the market data provider.
 
-        :param exchange_connector: Instance of an async exchange connector (required).
+        :param exchange_connector: Instance of an exchange connector (required).
         :param data_directory: Directory where the data will be stored.
         """
         if self._initialized:
@@ -123,7 +121,11 @@ class MarketDataProvider(threading.Thread):
 
             file_path = Path(f"{self.data_directory}/{symbol.replace('/', '_')}_{timeframe}.csv")
             file_path.parent.mkdir(parents=True, exist_ok=True)
-            df.to_csv(file_path, index=False)
+
+            temp_path = file_path.with_suffix(".tmp")
+            df.to_csv(temp_path, index=False)
+            os.replace(temp_path, file_path)
+
             logger.success("Data saved to {}", file_path)
 
             self.notify_subscribers(symbol, timeframe, file_path.name)

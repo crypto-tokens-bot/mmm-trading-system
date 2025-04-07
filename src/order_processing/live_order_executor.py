@@ -1,4 +1,3 @@
-import asyncio
 import threading
 import time
 import logging
@@ -71,7 +70,7 @@ class LiveOrderExecutor(OrderExecutor):
             exchange = self.exchanges['bybit']
 
             if order['order_category'] == 'spot':
-                result = asyncio.run(exchange.create_spot_order(order_id))
+                result = exchange.create_spot_order(order_id)
                 if not result:
                     raise Exception(f"Order placement failed for order {order_id}.")
                 update_order_status(order_id, "executing")

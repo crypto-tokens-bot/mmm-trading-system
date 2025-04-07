@@ -15,8 +15,7 @@ logger.add(f"../../logs/testing.log")
 
 class ExchangeConnector(ABC):
     """
-    Abstract asynchronous class for connecting to cryptocurrency exchanges via ccxt.
-    The constructor initializes an instance of ccxt.{exchange_id} in async mode.
+    Abstract class for connecting to cryptocurrency exchanges via ccxt.
     """
 
     def __init__(
@@ -161,7 +160,7 @@ class ExchangeConnector(ABC):
             logger.error(f"Failed to create market stop loss order for order_id {order_id}: {e}")
             raise
 
-    async def create_market_take_profit_order(self, order_id):
+    def create_market_take_profit_order(self, order_id):
         """
         Retrieves order details from the database using the provided order_id, places a market take-profit order via CCXT,
         waits for the exchange to process the order, and then updates the order status in the database to "executing".

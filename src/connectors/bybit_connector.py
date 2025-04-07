@@ -7,7 +7,7 @@ from src.connectors.exchange_connector import ExchangeConnector
 
 class BybitConnector(ExchangeConnector):
     """
-    Asynchronous connector for Bybit exchange, based on the AsyncExchangeConnector base class.
+    Connector for Bybit exchange, based on the ExchangeConnector base class.
     """
 
     def __init__(self, testnet: bool = False):

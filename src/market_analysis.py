@@ -1,4 +1,3 @@
-import asyncio
 import threading
 import pandas as pd
 import logging
@@ -46,7 +45,7 @@ class MarketAnalysis:
         self._initialized = True
         logger.info("MarketAnalysis instance created for symbol: %s", symbol)
 
-    async def get_ohlcv(self, timeframe='1d', since=None, limit=None):
+    def get_ohlcv(self, timeframe='1d', since=None, limit=None):
         """
         Retrieves historical OHLCV data for the specified trading pair and timeframe.
 
@@ -58,7 +57,7 @@ class MarketAnalysis:
         """
         try:
             logger.info("Fetching OHLCV data for %s with timeframe %s", self.symbol, timeframe)
-            ohlcv = await self.exchange.get_ohlcv(self.symbol, since, limit, timeframe)
+            ohlcv = self.exchange.get_ohlcv(self.symbol, since, limit, timeframe)
             df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
             df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
             with self._lock:
