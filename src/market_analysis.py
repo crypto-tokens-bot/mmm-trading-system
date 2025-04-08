@@ -1,10 +1,6 @@
 import threading
 import pandas as pd
-import logging
-
-# Setup logging configuration at the module level
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+from logger_config import logger
 
 
 class MarketAnalysis:

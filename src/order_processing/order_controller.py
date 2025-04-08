@@ -1,12 +1,9 @@
-import uuid
-from loguru import logger
+from logger_config import logger
 from decimal import Decimal
 from typing import List, Optional, Any
 
 from src.db.queries.events import add_event
 from src.db.queries.orders import add_order
-
-logger.add("../../logs/order_controller.log", rotation="10 MB", level="INFO", format="{time} - {level} - {message}")
 
 class OrderController:
     """

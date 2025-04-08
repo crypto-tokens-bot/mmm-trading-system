@@ -5,13 +5,24 @@ services:
     image: clickhouse/clickhouse-server:latest
     container_name: clickhouse
     ports:
-      - "8123:8123"   # HTTP-порт (для Grafana)
-      - "9000:9000"   # TCP-порт (для клиентов и IDE)
+      - "8123:8123"
+      - "9000:9000"
     environment:
       CLICKHOUSE_USER: ${CLICKHOUSE_USER}
       CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
     volumes:
       - clickhouse_data:/var/lib/clickhouse
+    networks:
+      - internal
+
+  loki:
+    image: grafana/loki:latest
+    container_name: loki
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - loki_data:/tmp/loki
     networks:
       - internal
 
@@ -29,10 +40,12 @@ services:
       - internal
     depends_on:
       - clickhouse
+      - loki
 
 volumes:
   clickhouse_data:
   grafana_data:
+  loki_data:
 
 networks:
   internal:

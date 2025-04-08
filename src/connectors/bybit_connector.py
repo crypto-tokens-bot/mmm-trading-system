@@ -1,4 +1,3 @@
-# bybit_connector.py
 import os
 import ccxt
 

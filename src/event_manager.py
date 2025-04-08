@@ -1,9 +1,7 @@
 import json
-import os
 import time
 import threading
-import uuid
-from loguru import logger
+from logger_config import logger
 
 from src.connectors.bybit_connector import BybitConnector
 from src.db.queries.events import get_next_event, mark_event_as_processed
@@ -11,10 +9,6 @@ from src.db.queries.event_managers import add_event_manager, update_event_manage
 from src.db.queries.strategy_subscriptions import add_strategy_subscription
 from src.order_processing.live_order_executor import LiveOrderExecutor
 from src.order_processing.order_controller import OrderController
-
-# Configure logger to write logs into logs folder
-logger.add(f"../logs/testing.log", level="INFO")
-
 
 class EventManager(threading.Thread):
     """

@@ -1,24 +1,14 @@
-import os
-import sys
 import time
 import uuid
-import logging
 from decimal import Decimal
-
-from loguru import logger
 
 from src.connectors.bybit_connector import BybitConnector
 from src.event_manager import EventManager
 from src.market_data_provider import MarketDataProvider
-from src.order_processing.live_order_executor import LiveOrderExecutor
-from src.order_processing.order_controller import OrderController
-from src.order_processing.order_executor import OrderExecutor
 from src.portfolio import Portfolio
 from src.strategy.abstract_strategy import AbstractStrategy
 from src.strategy.random_strategy import RandomStrategy
-
-# Configure logger to write logs into logs folder
-logger.add(f"../logs/testing.log", level="INFO")
+from logger_config import logger
 
 def create_fake_orders():
     event_manager = EventManager.create_new(mode="live")
@@ -93,4 +83,5 @@ def create_fake_market_data_provider():
 
 
 if __name__ == "__main__":
+    logger.info("Test in main")
     create_fake_market_data_provider()

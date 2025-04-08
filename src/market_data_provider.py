@@ -1,14 +1,10 @@
 import threading
 import time
 from pathlib import Path
-from typing import Dict, List, Tuple, Optional
-from loguru import logger
+from logger_config import logger
 import os
-from src.connectors.exchange_connector import ExchangeConnector
 
 from typing import Dict, List, Tuple, Optional
-from threading import Thread
-from loguru import logger
 
 from src.connectors.exchange_connector import ExchangeConnector
 

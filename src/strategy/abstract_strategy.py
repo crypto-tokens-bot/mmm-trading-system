@@ -2,7 +2,7 @@ import threading
 import time
 from abc import ABC, abstractmethod
 from typing import Dict, Any
-from loguru import logger
+from logger_config import logger
 
 from src.db.queries.events import add_event
 from src.db.queries.strategies import add_strategy, update_strategy_status

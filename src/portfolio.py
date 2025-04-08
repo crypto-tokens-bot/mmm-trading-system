@@ -1,7 +1,7 @@
 import random
 from decimal import Decimal
 
-from loguru import logger
+from logger_config import logger
 from src.db.queries.portfolios import get_portfolio_by_id, add_portfolio
 from src.order_processing.order_controller import OrderController
 

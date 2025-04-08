@@ -4,14 +4,11 @@ import time
 from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import Any
-from loguru import logger
+from logger_config import logger
 
 import pandas as pd
 
 from src.db.queries.orders import get_order_by_id
-
-# Configure logger to write logs into logs folder
-logger.add(f"../../logs/testing.log")
 
 class ExchangeConnector(ABC):
     """
