@@ -1,7 +1,7 @@
 import json
 import time
 import threading
-from logger_config import logger
+from src.config.logger_config import logger
 
 from src.connectors.bybit_connector import BybitConnector
 from src.db.queries.events import get_next_event, mark_event_as_processed

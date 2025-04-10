@@ -1,6 +1,5 @@
 import threading
-import pandas as pd
-from logger_config import logger
+from src.config.logger_config import logger
 
 
 class MarketAnalysis:
@@ -12,18 +11,17 @@ class MarketAnalysis:
     """
 
     _instance = None
-    _instance_lock = threading.Lock()
 
     def __new__(cls, *args, **kwargs):
         """
-        Implements the Singleton pattern in a thread-safe manner.
+        Implements the Singleton pattern.
 
         :return: The single instance of MarketAnalysis.
         """
-        with cls._instance_lock:
-            if cls._instance is None:
-                cls._instance = super(MarketAnalysis, cls).__new__(cls)
-            return cls._instance
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._instance._initialized = False
+        return cls._instance
 
     def __init__(self, exchange, symbol):
         """
@@ -32,37 +30,15 @@ class MarketAnalysis:
         :param exchange: The exchange instance used for data retrieval.
         :param symbol: The trading pair symbol for which data will be fetched.
         """
-        if hasattr(self, '_initialized') and self._initialized:
+        if self._initialized:
             return
+
         self.exchange = exchange
         self.symbol = symbol
         self.df = None
         self._lock = threading.Lock()
         self._initialized = True
         logger.info("MarketAnalysis instance created for symbol: %s", symbol)
-
-    def get_ohlcv(self, timeframe='1d', since=None, limit=None):
-        """
-        Retrieves historical OHLCV data for the specified trading pair and timeframe.
-
-        :param timeframe: Timeframe for the data (e.g., '1d' for one day).
-        :param since: Start timestamp in milliseconds for data retrieval. If None, retrieval starts from the earliest available date.
-        :param limit: Maximum number of records to return. If None, the exchange's default is used.
-        :return: A pandas DataFrame with columns 'timestamp', 'open', 'high', 'low', 'close', 'volume', where 'timestamp' is converted to datetime format.
-        :raises Exception: If fetching or processing of data fails.
-        """
-        try:
-            logger.info("Fetching OHLCV data for %s with timeframe %s", self.symbol, timeframe)
-            ohlcv = self.exchange.get_ohlcv(self.symbol, since, limit, timeframe)
-            df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
-            df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
-            with self._lock:
-                self.df = df
-            logger.info("OHLCV data fetched successfully for %s", self.symbol)
-            return df
-        except Exception as e:
-            logger.exception("Error fetching OHLCV data: %s", e)
-            raise
 
     def get_rsi(self, period=14):
         """

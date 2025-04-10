@@ -1,9 +1,16 @@
+import os
+
 import clickhouse_connect
-from src.settings import CLICKHOUSE_CONFIG
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 def get_db_client():
-    return clickhouse_connect.get_client(**CLICKHOUSE_CONFIG)
+    return clickhouse_connect.get_client(host=os.getenv("CLICKHOUSE_HOST", "localhost"),
+                                         port=int(os.getenv("CLICKHOUSE_PORT", 8123)),
+                                         user=os.getenv("CLICKHOUSE_USER", "user"),
+                                         password=os.getenv("CLICKHOUSE_PASSWORD"))
 
 
 def execute_query(query, params=None):

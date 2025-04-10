@@ -1,5 +1,5 @@
 import os
-from logger_config import logger
+from src.config.logger_config import logger
 from src.db.db_connection import execute_query
 
 

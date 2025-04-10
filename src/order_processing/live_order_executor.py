@@ -1,5 +1,5 @@
 import threading
-from logger_config import logger
+from src.config.logger_config import logger
 from queue import Queue
 
 from src.db.queries.orders import get_order_by_id, get_executing_orders, update_order_status

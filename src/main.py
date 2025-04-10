@@ -5,10 +5,12 @@ from decimal import Decimal
 from src.connectors.bybit_connector import BybitConnector
 from src.event_manager import EventManager
 from src.market_data_provider import MarketDataProvider
+from src.monitoring import Monitoring
 from src.portfolio import Portfolio
 from src.strategy.abstract_strategy import AbstractStrategy
 from src.strategy.random_strategy import RandomStrategy
-from logger_config import logger
+from src.config.logger_config import logger
+
 
 def create_fake_orders():
     event_manager = EventManager.create_new(mode="live")
@@ -82,6 +84,11 @@ def create_fake_market_data_provider():
     event_manager.stop()
 
 
+def monitor():
+    monitoring = Monitoring()
+    monitoring.ohlcv_plot(data='market_data_test/BTC_USDT_1h.csv', volume=False, type='line')
+
+
 if __name__ == "__main__":
     logger.info("Test in main")
-    create_fake_market_data_provider()
+    monitor()
