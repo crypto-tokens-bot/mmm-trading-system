@@ -9,17 +9,18 @@ import pandas as pd
 
 from src.db.queries.orders import get_order_by_id
 
+
 class ExchangeConnector(ABC):
     """
     Abstract class for connecting to cryptocurrency exchanges via ccxt.
     """
 
     def __init__(
-        self,
-        exchange,
-        api_key: str = None,
-        api_secret: str = None,
-        testnet: bool = False
+            self,
+            exchange,
+            api_key: str = None,
+            api_secret: str = None,
+            testnet: bool = False
     ):
         """
         Initializes the exchange connector with API credentials and optional sandbox mode.
@@ -42,13 +43,13 @@ class ExchangeConnector(ABC):
         return self._exchange.fetch_order_book(symbol, limit)
 
     def fetch_ohlcv(
-        self,
-        symbol: str,
-        timeframe: str,
-        start_time: datetime | int | None = None,
-        end_time: datetime | int | None = None,
-        limit: int = 100,
-        **kwargs
+            self,
+            symbol: str,
+            timeframe: str,
+            start_time: datetime | int | None = None,
+            end_time: datetime | int | None = None,
+            limit: int = 100,
+            **kwargs
     ) -> Any:
         """
         Fetches historical OHLCV (Open, High, Low, Close, Volume) candle data from the exchange.
@@ -99,6 +100,17 @@ class ExchangeConnector(ABC):
             result = self._exchange.create_order(coin, order_type, side, amount, params=params)
         return result
 
+    def get_last_order(self, symbol):
+        all_orders = self._exchange.fetch_closed_orders(symbol, limit=1)
+        open_orders = self._exchange.fetch_open_orders(symbol, limit=1)
+        for order in open_orders:
+            all_orders.append(order)
+        canceled_orders = self._exchange.fetch_canceled_orders(symbol, limit=1)
+        for order in canceled_orders:
+            all_orders.append(order)
+        all_orders.sort(key=lambda order: order['datetime'], reverse=True)
+        return all_orders[0]
+
     def create_spot_order(self, order_id):
         """
         Retrieves order details from the database using the provided order_id, places a market buy order via CCXT,
@@ -111,21 +123,14 @@ class ExchangeConnector(ABC):
         try:
             # Retrieve order details from the database.
             order_details = get_order_by_id(order_id)[0]
-            response_data = self.create_order(order_details['symbol'], order_details['order_type'], order_details['order_side'], order_details['initial_quantity'])
-            print(response_data)
-            time.sleep(2)
-            closed_orders = self._exchange.fetch_canceled_orders(order_details['symbol'])
-            sorted_by_timestamp = self._exchange.sort_by(closed_orders, 'timestamp', True)
-            order = sorted_by_timestamp[0]
-            if order is not None:
-                # update_order_status(order_id, "executing")
-                return order
-            else:
-                raise Exception("No closed orders found.")
+            self.create_order(order_details['symbol'], order_details['order_type'],
+                                              order_details['order_side'], order_details['initial_quantity'])
+            last_order = self.get_last_order(order_details['symbol'])
+            exchange_order_id = last_order['info']['orderId']
+            return exchange_order_id
         except Exception as e:
             logger.error(f"Failed to create spot order for order_id {order_id}: {e}")
             raise
-
 
     def create_market_stop_loss_order(self, order_id):
         """

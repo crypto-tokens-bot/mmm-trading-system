@@ -33,16 +33,6 @@ def create_fake_orders():
     event_manager.start()
 
 
-def create_fake_strategy():
-    event_manager = EventManager.create_new(mode="live")
-    event_manager.start()
-    strategy = AbstractStrategy.create_strategy(RandomStrategy, event_manager.event_manager_id, "BTC/USDT", "Random", {})
-    strategy.start()
-    time.sleep(10)
-    strategy.stop()
-    event_manager.stop()
-
-
 def create_fake_portfolio():
     event_manager = EventManager.create_new(mode="live")
     event_manager.start()
@@ -86,9 +76,9 @@ def create_fake_market_data_provider():
 
 def monitor():
     monitoring = Monitoring()
-    monitoring.ohlcv_plot(data='market_data_test/BTC_USDT_1h.csv', volume=False, type='line')
+    monitoring.ohlcv_plot(data='market_data_test/BTC_USDT_1h.csv', volume=True, type='line')
 
 
 if __name__ == "__main__":
     logger.info("Test in main")
-    monitor()
+    create_fake_portfolio()
