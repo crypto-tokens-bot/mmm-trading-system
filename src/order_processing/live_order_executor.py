@@ -90,7 +90,7 @@ class LiveOrderExecutor(OrderExecutor):
                 logger.debug(f"Order {order_id} status: {status}")
                 if status == "executed":
                     update_order_status(order_id, "executed")
-                    add_event(order['event_manager_id'], "OrderExecutedEvent", 2, {"order_id": order_id})
+                    add_event(order['event_manager_id'], "OrderExecutedEvent", 2, {"order_id": order_id, "portfolio_id": str(order['portfolio_id'])})
                     logger.info(f"Order {order_id} executed.")
                 elif status == "cancelled":
                     update_order_status(order_id, "cancelled")

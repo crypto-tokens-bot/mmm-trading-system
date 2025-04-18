@@ -8,6 +8,14 @@ from src.risk_controller import RiskController, TradeDecision
 
 
 class Portfolio:
+    _cache: dict = {}
+
+    @classmethod
+    def load_by_id(cls, portfolio_id: int):
+        if portfolio_id not in cls._cache:
+            cls._cache[portfolio_id] = cls(portfolio_id)
+        return cls._cache[portfolio_id]
+
     def __init__(self, portfolio_id):
         """
         Initializes a Portfolio object by loading its data from the database.
@@ -34,8 +42,8 @@ class Portfolio:
 
         logger.info(f"Initialized portfolio: {self.portfolio_id} - {self.portfolio_name}")
 
-    @staticmethod
-    def create_portfolio(event_manager_id, risk_controller_id, portfolio_name, managed_assets, currency,
+    @classmethod
+    def create_portfolio(cls, event_manager_id, risk_controller_id, portfolio_name, managed_assets, currency,
                          initial_balance, exchange):
         """
         Creates a new portfolio in the database.
@@ -58,8 +66,9 @@ class Portfolio:
             managed_assets=managed_assets,
             exchange=exchange
         )
+        cls._cache[portfolio_id] = cls(portfolio_id)
         logger.info(f"Created new portfolio with ID: {portfolio_id}")
-        return Portfolio(portfolio_id)
+        return cls._cache[portfolio_id]
 
     def handle_signal_event(self, event):
         """
@@ -93,11 +102,11 @@ class Portfolio:
         )
 
 
-def handle_order_filled_event(self, event):
-    """
-    Handles an order filled event. Logs the event details.
+    def handle_order_executed_event(self, event):
+        """
+        Handles an order filled event. Logs the event details.
 
-    :param event: Dictionary representing the order filled event. Must contain 'event_type' and 'payload' with 'order_id'.
-    """
-    order_id = event['payload']['order_id']
-    logger.info(f"Portfolio {self.portfolio_id} received order filled event for order {order_id}")
+        :param event: Dictionary representing the order filled event. Must contain 'event_type' and 'payload' with 'order_id'.
+        """
+        order_id = event['payload']['order_id']
+        logger.info(f"Portfolio {self.portfolio_id} received order filled event for order {order_id}")

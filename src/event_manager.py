@@ -9,6 +9,8 @@ from src.db.queries.event_managers import add_event_manager, update_event_manage
 from src.db.queries.strategy_subscriptions import add_strategy_subscription
 from src.order_processing.live_order_executor import LiveOrderExecutor
 from src.order_processing.order_controller import OrderController
+from src.portfolio import Portfolio
+
 
 class EventManager(threading.Thread):
     """
@@ -84,7 +86,8 @@ class EventManager(threading.Thread):
             if event['event_type'] == "OrderPlacementEvent":
                 self._order_executor.execute_order(event['payload']['order_id'])
             elif event['event_type'] == "OrderExecutedEvent":
-                pass
+                portfolio = Portfolio.load_by_id(event['payload']['portfolio_id'])
+                portfolio.handle_order_executed_event(event)
             elif event['event_type'] == "SignalEvent":
                 strategy_id = event['payload']['strategy_id']
                 if not strategy_id:
@@ -102,7 +105,6 @@ class EventManager(threading.Thread):
             else:
                 pass
 
-            # Mark the event as processed in the database
             mark_event_as_processed(event['event_id'])
             logger.info(f"EventManager {self.event_manager_id}: Event {event['event_id']} marked as processed.")
         except Exception as e:
