@@ -1,6 +1,7 @@
 import uuid
 
-from src.db.db_connection import execute_query
+from src.db.db_connection import execute_query, to_map_literal
+
 
 def add_portfolio(event_manager_id, risk_controller_id, portfolio_name, managed_assets, currency, initial_balance, exchange):
     """
@@ -20,7 +21,9 @@ def add_portfolio(event_manager_id, risk_controller_id, portfolio_name, managed_
     INSERT INTO portfolios (portfolio_id, event_manager_id, risk_controller_id, portfolio_name, managed_assets, currency, initial_balance, exchange)
     VALUES (%(portfolio_id)s, %(event_manager_id)s, %(risk_controller_id)s, %(portfolio_name)s, %(managed_assets)s, %(currency)s, %(initial_balance)s, %(exchange)s)
     """
-    execute_query(query, locals())
+    params = locals()
+    params['managed_assets'] = to_map_literal(managed_assets)
+    execute_query(query, params)
     return str(portfolio_id)
 
 

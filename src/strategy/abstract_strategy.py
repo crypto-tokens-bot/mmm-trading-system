@@ -60,15 +60,6 @@ class AbstractStrategy(ABC):
         """
         Create a new SignalEvent in the event manager.
         """
-        event = {
-            "event_type": "SignalEvent",
-            "priority": 2,
-            "payload": {
-
-            },
-            "event_manager_id": self.event_manager_id,
-        }
-
         add_event(event_manager_id=self.event_manager_id, event_type="SignalEvent", priority=2,
                   payload={"strategy_id": self.strategy_id,
                            "strategy_name": self.strategy_name,

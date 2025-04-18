@@ -1,3 +1,4 @@
+import json
 import uuid
 
 from src.db.db_connection import execute_query
@@ -31,7 +32,9 @@ def get_event_by_id(event_id):
 
     """
     query = "SELECT * FROM events WHERE event_id = %(event_id)s"
-    return execute_query(query, {"event_id": event_id})
+    result = execute_query(query, {"event_id": event_id})
+    result['payload'] = json.loads(result['payload'])
+    return result
 
 
 def get_next_event(event_manager_id):
@@ -49,7 +52,10 @@ def get_next_event(event_manager_id):
     LIMIT 1
     """
     result = execute_query(query, {"event_manager_id": event_manager_id})
-    return result[0] if result else None
+    result = result[0] if result else None
+    if result:
+        result['payload'] = json.loads(result['payload'])
+    return result
 
 
 def mark_event_as_processed(event_id):

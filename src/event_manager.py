@@ -78,16 +78,15 @@ class EventManager(threading.Thread):
         """
         if not event:
             return
-
         try:
             logger.info(
                 f"EventManager {self.event_manager_id}: Handling event {event['event_id']} of type {event['event_type']}")
             if event['event_type'] == "OrderPlacementEvent":
-                self._order_executor.execute_order(json.loads(event['payload'])['order_id'])
+                self._order_executor.execute_order(event['payload']['order_id'])
             elif event['event_type'] == "order":
                 pass
             elif event['event_type'] == "SignalEvent":
-                strategy_id = json.loads(event['payload'])['strategy_id']
+                strategy_id = event['payload']['strategy_id']
                 if not strategy_id:
                     logger.warning("SignalEvent missing strategy_id in payload")
                     return

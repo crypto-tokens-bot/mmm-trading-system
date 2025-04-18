@@ -1,4 +1,5 @@
 import os
+from decimal import Decimal
 
 import clickhouse_connect
 from dotenv import load_dotenv
@@ -30,3 +31,8 @@ def execute_query(query, params=None):
     rows = result.result_rows
     dict_result = [dict(zip(column_names, row)) for row in rows]
     return dict_result
+
+
+def to_map_literal(d):
+    parts = [f"'{k}': {Decimal(str(v))}" for k, v in d.items()]
+    return '{' + ', '.join(parts) + '}'

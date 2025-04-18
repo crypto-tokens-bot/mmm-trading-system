@@ -4,6 +4,8 @@ from decimal import Decimal
 from src.config.logger_config import logger
 from src.db.queries.portfolios import get_portfolio_by_id, add_portfolio
 from src.order_processing.order_controller import OrderController
+from src.risk_controller import RiskController, TradeDecision
+
 
 class Portfolio:
     def __init__(self, portfolio_id):
@@ -25,18 +27,23 @@ class Portfolio:
         self.currency = data['currency']
         self.initial_balance = data['initial_balance']
         self.exchange = data['exchange']
+        self.risk_controller = RiskController.create_risk_controller(
+            self.risk_controller_id,
+            self
+        )
 
         logger.info(f"Initialized portfolio: {self.portfolio_id} - {self.portfolio_name}")
 
     @staticmethod
-    def create_portfolio(event_manager_id, risk_controller_id, portfolio_name, managed_assets, currency, initial_balance, exchange):
+    def create_portfolio(event_manager_id, risk_controller_id, portfolio_name, managed_assets, currency,
+                         initial_balance, exchange):
         """
         Creates a new portfolio in the database.
 
         :param event_manager_id: ID of the associated event manager.
         :param risk_controller_id: ID of the associated risk controller.
         :param portfolio_name: Name of the portfolio.
-        :param managed_assets: Assets managed by the portfolio (e.g., list or dict of asset names).
+        :param managed_assets: Assets managed by the portfolio (e.g., dict of asset names).
         :param currency: The base currency in which the portfolio is denominated (e.g., 'USD').
         :param initial_balance: Initial balance of the portfolio in base currency.
         :param exchange: Name of the exchange where the portfolio is active (e.g., 'Binance').
@@ -60,14 +67,13 @@ class Portfolio:
 
         :param event: Dictionary representing the signal event. Must contain 'event_type' and 'event_id'.
         """
-        if event['event_type'] != 'SignalEvent':
+        logger.info(f"Handling signal event in portfolio {self.portfolio_id}")
+
+        decision: TradeDecision | None = self.risk_controller.evaluate(event)
+
+        if decision is None:
+            logger.info("Signal rejected by RiskController")
             return
-
-        direction = random.choice(['buy', 'sell'])
-        quantity = random.uniform(1, 10)
-        expected_price = random.uniform(100, 500)
-
-        logger.info(f"Handling signal event in portfolio {self.portfolio_id}: direction={direction}, quantity={quantity:.2f}, price={expected_price:.2f}")
 
         OrderController().create_order(
             portfolio_id=self.portfolio_id,
@@ -75,23 +81,23 @@ class Portfolio:
             signal_id=event['event_id'],
             order_type='market',
             order_category='spot',
-            order_side=direction,
-            target_price=Decimal("40000"),
+            order_side=decision.direction,
+            target_price=Decimal("0"), # fix
             order_status="pending",
-            symbol="BTC/USDT",
-            base_currency="BTC",
-            quote_currency="USDT",
-            initial_quantity=Decimal("0.0001")
+            symbol=decision.trading_pair,
+            base_currency=decision.trading_pair[:decision.trading_pair.index('/')],
+            quote_currency=self.currency,
+            initial_quantity=decision.quantity,
+            stop_loss=decision.stop_loss,
+            take_profit=decision.take_profit,
         )
 
-    def handle_order_filled_event(self, event):
-        """
-        Handles an order filled event. Logs the event details.
 
-        :param event: Dictionary representing the order filled event. Must contain 'event_type' and 'payload' with 'order_id'.
-        """
-        if event['event_type'] != 'OrderFilledEvent':
-            return
+def handle_order_filled_event(self, event):
+    """
+    Handles an order filled event. Logs the event details.
 
-        order_id = event['payload'].get('order_id')
-        logger.info(f"Portfolio {self.portfolio_id} received order filled event for order {order_id}")
+    :param event: Dictionary representing the order filled event. Must contain 'event_type' and 'payload' with 'order_id'.
+    """
+    order_id = event['payload']['order_id']
+    logger.info(f"Portfolio {self.portfolio_id} received order filled event for order {order_id}")

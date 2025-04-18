@@ -1,7 +1,6 @@
-import json
 import uuid
 
-from src.db.db_connection import execute_query
+from src.db.db_connection import execute_query, to_map_literal
 
 
 def add_risk_controller(risk_model, stop_loss_coefficient, take_profit_coefficient,
@@ -20,7 +19,9 @@ def add_risk_controller(risk_model, stop_loss_coefficient, take_profit_coefficie
     INSERT INTO risk_controllers (risk_controller_id, risk_model, stop_loss_coefficient, take_profit_coefficient, max_asset_share)
     VALUES (%(risk_controller_id)s, %(risk_model)s, %(stop_loss_coefficient)s, %(take_profit_coefficient)s, %(max_asset_share)s)
     """
-    execute_query(query, locals())
+    params = locals()
+    params['max_asset_share'] = to_map_literal(max_asset_share)
+    execute_query(query, params)
     return str(risk_controller_id)
 
 

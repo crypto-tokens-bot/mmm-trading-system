@@ -3,6 +3,7 @@ import uuid
 from decimal import Decimal
 
 from src.connectors.bybit_connector import BybitConnector
+from src.db.queries.risk_controllers import add_risk_controller
 from src.event_manager import EventManager
 from src.market_data_provider import MarketDataProvider
 from src.monitoring import Monitoring
@@ -39,9 +40,14 @@ def create_fake_portfolio():
     strategy = AbstractStrategy.create_strategy(RandomStrategy, event_manager.event_manager_id, "BTC/USDT", "Random", {})
     strategy.start()
 
+    risk_controller_id = add_risk_controller("aggressive", 0.5, 1.5,    {
+        'BTC/USDT': 0.5,
+        'ETH/USDT': 0.5
+    })
+
     portfolio = Portfolio.create_portfolio(
         event_manager_id=event_manager.event_manager_id,
-        risk_controller_id=str(uuid.uuid4()),
+        risk_controller_id=risk_controller_id,
         portfolio_name="My Test Portfolio",
         managed_assets={"BTC": 0.5, "ETH": 2},
         currency="USDT",
