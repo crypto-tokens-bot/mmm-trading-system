@@ -9,6 +9,7 @@ def add_order(portfolio_id, event_manager_id, signal_id, order_type, order_categ
     """
     Inserts a new order into the orders table.
 
+    :param order_exchange_id: UUID of the order in exhange.
     :param portfolio_id: UUID of the associated portfolio.
     :param event_manager_id: UUID of the event manager handling this order.
     :param signal_id: UUID of the signal that triggered this order.
@@ -47,6 +48,22 @@ def get_order_by_id(order_id):
     return execute_query(query, {"order_id": order_id})
 
 
+def update_order_exchange_id(order_id, order_exchange_id):
+    """
+        Updates the order exchange id.
+
+        :param order_id: UUID of the order to update.
+        :param order_exchange_id: UUID of the order in exchange.
+    """
+    query = """
+    ALTER TABLE orders 
+    UPDATE 
+        order_exchange_id = %(order_exchange_id)s
+    WHERE order_id = %(order_id)s
+    """
+    execute_query(query, {"order_id": order_id, "order_exchange_id": str(order_exchange_id)})
+
+
 def update_order_status(order_id, status):
     """
         Updates the status and timestamps of an order.
@@ -55,12 +72,22 @@ def update_order_status(order_id, status):
         :param status: New status of the order.
     """
     query = """
-    ALTER TABLE orders 
-    UPDATE 
-        order_status = %(status)s,
-        updated_at = now()
-    WHERE order_id = %(order_id)s
-    """
+        ALTER TABLE orders 
+        UPDATE 
+            order_status = %(status)s,
+            updated_at = now()
+        WHERE order_id = %(order_id)s
+        """
+    if status == 'executed':
+        query = """
+            ALTER TABLE orders 
+            UPDATE 
+                order_status = %(status)s,
+                updated_at = now(),
+                executed_at = now()
+            WHERE order_id = %(order_id)s
+            """
+
     execute_query(query, {"order_id": order_id, "status": status})
 
 

@@ -2,7 +2,8 @@ import threading
 from src.config.logger_config import logger
 from queue import Queue
 
-from src.db.queries.orders import get_order_by_id, get_executing_orders, update_order_status
+from src.db.queries.events import add_event
+from src.db.queries.orders import get_order_by_id, get_executing_orders, update_order_status, update_order_exchange_id
 from src.order_processing.order_executor import OrderExecutor
 
 
@@ -32,15 +33,12 @@ class LiveOrderExecutor(OrderExecutor):
 
         self.exchanges = exchanges
         self._order_queue = Queue()
-        self._lock = threading.Lock()
 
-        # Re-queue all currently executing orders
         executing_orders = get_executing_orders()
         for order in executing_orders:
             self._order_queue.put(order["order_id"])
         logger.info(f"Restored {len(executing_orders)} executing orders into queue.")
 
-        # Start monitoring thread
         self._monitor_thread = threading.Thread(target=self._monitor_executing_orders, daemon=True)
         self._monitor_thread.start()
 
@@ -60,16 +58,10 @@ class LiveOrderExecutor(OrderExecutor):
             if order is None:
                 raise ValueError(f"Order {order_id} not found.")
 
-            # Use the appropriate exchange connector (here hardcoded as Bybit for now)
             exchange = self.exchanges['bybit']
 
             if order['order_category'] == 'spot':
-                result = exchange.create_spot_order(order_id)
-                if not result:
-                    raise Exception(f"Order placement failed for order {order_id}.")
-                update_order_status(order_id, "executing")
-            # Add order to the queue
-            self._order_queue.put(order_id)
+                self._order_queue.put(exchange.create_spot_order(order_id))
             logger.info(f"Order {order_id} is now executing.")
         except Exception as e:
             logger.exception("Error executing order %s: %s", order_id, e)
@@ -81,11 +73,12 @@ class LiveOrderExecutor(OrderExecutor):
         """
         while True:
             try:
-                order_id = self._order_queue.get()  # Blocks until an order is available
+                order_id = self._order_queue.get()
                 order = get_order_by_id(order_id)[0]
                 if order is None:
                     logger.warning(f"Order {order_id} not found during monitoring.")
                     continue
+                logger.debug(f"Order {order_id} status check...")
 
                 # exchange_name = order.get("exchange")
                 # if exchange_name not in self.exchanges:
@@ -93,17 +86,16 @@ class LiveOrderExecutor(OrderExecutor):
                 #     continue
 
                 exchange = self.exchanges['bybit']
-                # status = exchange.check_order_status(order)
-                status = "executed"
+                status = exchange.check_order_status(order['order_exchange_id'], order['symbol'])
+                logger.debug(f"Order {order_id} status: {status}")
                 if status == "executed":
                     update_order_status(order_id, "executed")
-                    # self.event_manager.publish_event("OrderExecuted", {
-                    #     "order_id": order_id,
-                    #     "order_status": "executed"
-                    # })
+                    add_event(order['event_manager_id'], "OrderExecutedEvent", 2, {"order_id": order_id})
                     logger.info(f"Order {order_id} executed.")
+                elif status == "cancelled":
+                    update_order_status(order_id, "cancelled")
+                    logger.warning(f"Order {order_id} cancelled.")
                 else:
-                    # Re-queue the order if still pending
                     self._order_queue.put(order_id)
             except Exception as e:
                 logger.exception(f"Error while monitoring order {order_id}: {e}")

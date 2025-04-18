@@ -83,7 +83,7 @@ class EventManager(threading.Thread):
                 f"EventManager {self.event_manager_id}: Handling event {event['event_id']} of type {event['event_type']}")
             if event['event_type'] == "OrderPlacementEvent":
                 self._order_executor.execute_order(event['payload']['order_id'])
-            elif event['event_type'] == "order":
+            elif event['event_type'] == "OrderExecutedEvent":
                 pass
             elif event['event_type'] == "SignalEvent":
                 strategy_id = event['payload']['strategy_id']
@@ -101,8 +101,6 @@ class EventManager(threading.Thread):
                 pass
             else:
                 pass
-
-            time.sleep(1)  # Simulate event processing
 
             # Mark the event as processed in the database
             mark_event_as_processed(event['event_id'])

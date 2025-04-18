@@ -3,11 +3,14 @@ import time
 from abc import ABC
 from datetime import datetime
 from typing import Any
+
+import ccxt
+
 from src.config.logger_config import logger
 
 import pandas as pd
 
-from src.db.queries.orders import get_order_by_id
+from src.db.queries.orders import get_order_by_id, update_order_status, update_order_exchange_id
 
 
 class ExchangeConnector(ABC):
@@ -126,8 +129,10 @@ class ExchangeConnector(ABC):
             self.create_order(order_details['symbol'], order_details['order_type'],
                                               order_details['order_side'], order_details['initial_quantity'])
             last_order = self.get_last_order(order_details['symbol'])
-            exchange_order_id = last_order['info']['orderId']
-            return exchange_order_id
+            order_exchange_id = last_order['info']['orderId']
+            update_order_status(order_id, "executing")
+            update_order_exchange_id(order_id, order_exchange_id)
+            return order_id
         except Exception as e:
             logger.error(f"Failed to create spot order for order_id {order_id}: {e}")
             raise
@@ -153,7 +158,7 @@ class ExchangeConnector(ABC):
             sorted_by_timestamp = self._exchange.sort_by(open_orders, 'timestamp', True)
             order = sorted_by_timestamp[0]
             if order is not None:
-                self.update_order_status(order_id, "executing")
+                update_order_status(order_id, "executing")
                 return order
             else:
                 raise Exception("No open orders found.")
@@ -183,10 +188,48 @@ class ExchangeConnector(ABC):
             sorted_by_timestamp = self._exchange.sort_by(closed_orders, 'timestamp', True)
             order = sorted_by_timestamp[0]
             if order is not None:
-                self.update_order_status(order_id, "executing")
+                update_order_status(order_id, "executing")
                 return order
             else:
                 raise Exception("No closed orders found for take profit order.")
         except Exception as e:
             logger.error(f"Failed to create market take profit order for order_id {order_id}: {e}")
             raise
+
+
+    def check_order_status(
+            self,
+            order_exchange_id: str,
+            symbol: str | None = None
+    ):
+        try:
+            order = self._exchange.fetch_closed_order(
+                id=order_exchange_id,
+                symbol=symbol
+            )
+            return 'executed'
+        except ccxt.OrderNotFound as e:
+            pass
+
+
+        try:
+            order = self._exchange.fetch_open_order(
+                id=order_exchange_id,
+                symbol=symbol
+            )
+            return 'executing'
+        except ccxt.OrderNotFound as e:
+            pass
+
+
+
+        return "cancelled"
+        # try:
+        #     order = self._exchange.fetch_canceled_orders(
+        #         id=order_exchange_id,
+        #         symbol=symbol
+        #     )
+        #     print(order)
+        #     return order["status"]
+        # except ccxt.OrderNotFound as e:
+        #     pass

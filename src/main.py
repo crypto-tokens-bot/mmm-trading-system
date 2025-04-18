@@ -57,7 +57,7 @@ def create_fake_portfolio():
 
     event_manager.subscribe_portfolio_to_strategy(portfolio, strategy.strategy_id)
 
-    time.sleep(10)
+    time.sleep(40)
     strategy.stop()
     event_manager.stop()
 

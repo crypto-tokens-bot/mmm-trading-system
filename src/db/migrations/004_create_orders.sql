@@ -1,6 +1,7 @@
 CREATE TABLE IF NOT EXISTS orders
 (
     order_id UUID,
+    order_exchange_id String DEFAULT NULL,
     portfolio_id UUID NOT NULL,
     event_manager_id UUID NOT NULL,
     parent_order_id UUID DEFAULT NULL,
