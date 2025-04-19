@@ -1,250 +1,164 @@
 import threading
-from src.config.logger_config import logger
+import pandas as pd
 
 
 class MarketAnalysis:
     """
-    MarketAnalysis provides tools for loading and analyzing historical price data for cryptocurrency assets.
-    It uses the ccxt library for interacting with various cryptocurrency exchanges.
-
-    This class is implemented as a thread-safe Singleton.
+    Thread‑safe, stateless helper class for computing common TA indicators
+    from OHLCV data stored on disk.
     """
 
-    _instance = None
+    _lock = threading.Lock()
 
-    def __new__(cls, *args, **kwargs):
+    @staticmethod
+    def _load_df(file_path: str) -> pd.DataFrame:
         """
-        Implements the Singleton pattern.
+        Load OHLCV data.
 
-        :return: The single instance of MarketAnalysis.
+        :param file_path: Path to CSV/Parquet containing columns
+                          open, high, low, close, volume.
+        :return: DataFrame with the data.
+        :raises FileNotFoundError: If file is missing.
+        :raises ValueError: If columns are incomplete.
         """
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-            cls._instance._initialized = False
-        return cls._instance
+        with MarketAnalysis._lock:
+            if file_path.endswith(".parquet"):
+                df = pd.read_parquet(file_path)
+            else:
+                df = pd.read_csv(file_path)
 
-    def __init__(self, exchange, symbol):
+            need = {"open", "high", "low", "close", "volume"}
+            if not need.issubset(df.columns):
+                raise ValueError(f"Input must contain: {', '.join(sorted(need))}")
+            return df
+
+    @staticmethod
+    def get_rsi(file_path: str, period: int = 14) -> pd.Series:
         """
-        Initializes an instance of MarketAnalysis.
-
-        :param exchange: The exchange instance used for data retrieval.
-        :param symbol: The trading pair symbol for which data will be fetched.
+        :param file_path: OHLCV file.
+        :param period: Look‑back window.
+        :return: RSI series.
         """
-        if self._initialized:
-            return
+        with MarketAnalysis._lock:
+            df = MarketAnalysis._load_df(file_path)
+            delta = df["close"].diff()
+            gain = delta.clip(lower=0)
+            loss = -delta.clip(upper=0)
+            rs = gain.rolling(period).mean() / loss.rolling(period).mean()
+            return 100 - 100 / (1 + rs)
 
-        self.exchange = exchange
-        self.symbol = symbol
-        self.df = None
-        self._lock = threading.Lock()
-        self._initialized = True
-        logger.info("MarketAnalysis instance created for symbol: %s", symbol)
-
-    def get_rsi(self, period=14):
+    @staticmethod
+    def get_macd(
+        file_path: str,
+        fast_period: int = 12,
+        slow_period: int = 26,
+        signal_period: int = 9,
+    ) -> tuple[pd.Series, pd.Series]:
         """
-        Calculates the Relative Strength Index (RSI) for closing prices.
-
-        :param period: The period over which to calculate the RSI.
-        :return: A pandas Series containing the RSI values.
-        :raises ValueError: If the DataFrame is not loaded.
-        :raises Exception: For other calculation errors.
+        :param file_path: OHLCV file.
+        :param fast_period: Fast EMA span.
+        :param slow_period: Slow EMA span.
+        :param signal_period: Signal EMA span.
+        :return: (MACD line, signal line).
         """
-        try:
-            logger.info("Calculating RSI with period %d", period)
-            with self._lock:
-                if self.df is None:
-                    raise ValueError("DataFrame is not loaded. Please call get_ohlcv first.")
-                delta = self.df['close'].diff()
-                avg_gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
-                avg_loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
-                rs = avg_gain / avg_loss
-                rsi = 100 - (100 / (1 + rs))
-            logger.info("RSI calculation completed")
-            return rsi
-        except Exception as e:
-            logger.exception("Error calculating RSI: %s", e)
-            raise
-
-    def get_macd(self, fast_period=12, slow_period=26, signal_period=9):
-        """
-        Calculates the Moving Average Convergence Divergence (MACD).
-
-        :param fast_period: The period for the fast EMA.
-        :param slow_period: The period for the slow EMA.
-        :param signal_period: The period for the signal line.
-        :return: A tuple of two pandas Series: (MACD line, signal line).
-        :raises ValueError: If the DataFrame is not loaded.
-        :raises Exception: For other calculation errors.
-        """
-        try:
-            logger.info("Calculating MACD with fast_period=%d, slow_period=%d, signal_period=%d", fast_period,
-                        slow_period, signal_period)
-            with self._lock:
-                if self.df is None:
-                    raise ValueError("DataFrame is not loaded. Please call get_ohlcv first.")
-                exp1 = self.df['close'].ewm(span=fast_period, adjust=False).mean()
-                exp2 = self.df['close'].ewm(span=slow_period, adjust=False).mean()
-                macd = exp1 - exp2
-                signal = macd.ewm(span=signal_period, adjust=False).mean()
-            logger.info("MACD calculation completed")
+        with MarketAnalysis._lock:
+            df = MarketAnalysis._load_df(file_path)
+            fast = df["close"].ewm(span=fast_period, adjust=False).mean()
+            slow = df["close"].ewm(span=slow_period, adjust=False).mean()
+            macd = fast - slow
+            signal = macd.ewm(span=signal_period, adjust=False).mean()
             return macd, signal
-        except Exception as e:
-            logger.exception("Error calculating MACD: %s", e)
-            raise
 
-    def get_aroon(self, period=25):
+    @staticmethod
+    def get_aroon(file_path: str, period: int = 25) -> tuple[pd.Series, pd.Series]:
         """
-        Calculates the Aroon Up and Aroon Down indicators.
+        :param file_path: OHLCV file.
+        :param period: Look‑back window.
+        :return: (Aroon‑Up, Aroon‑Down).
+        """
+        with MarketAnalysis._lock:
+            df = MarketAnalysis._load_df(file_path)
+            a_up = df["high"].rolling(period).apply(lambda x: x.argmax(), raw=True)
+            a_dn = df["low"].rolling(period).apply(lambda x: x.argmin(), raw=True)
+            scale = 100 / (period - 1)
+            return a_up * scale, a_dn * scale
 
-        :param period: The period over which to calculate the Aroon indicators.
-        :return: A tuple of two pandas Series: (Aroon Up, Aroon Down).
-        :raises ValueError: If the DataFrame is not loaded.
-        :raises Exception: For other calculation errors.
+    @staticmethod
+    def get_obv(file_path: str) -> pd.Series:
         """
-        try:
-            logger.info("Calculating Aroon indicators with period %d", period)
-            with self._lock:
-                if self.df is None:
-                    raise ValueError("DataFrame is not loaded. Please call get_ohlcv first.")
-                aroon_up = self.df['high'].rolling(window=period).apply(lambda x: x.argmax(), raw=True) / (
-                        period - 1) * 100
-                aroon_down = self.df['low'].rolling(window=period).apply(lambda x: x.argmin(), raw=True) / (
-                        period - 1) * 100
-            logger.info("Aroon indicators calculation completed")
-            return aroon_up, aroon_down
-        except Exception as e:
-            logger.exception("Error calculating Aroon indicators: %s", e)
-            raise
+        :param file_path: OHLCV file.
+        :return: OBV series.
+        """
+        with MarketAnalysis._lock:
+            df = MarketAnalysis._load_df(file_path)
+            direction = df["close"].diff().gt(0).replace({True: 1, False: -1}).fillna(0)
+            return (df["volume"] * direction).cumsum()
 
-    def get_obv(self):
+    @staticmethod
+    def get_stochastic_oscillator(
+        file_path: str, k_period: int = 14, d_period: int = 3
+    ) -> tuple[pd.Series, pd.Series]:
         """
-        Calculates the On-Balance Volume (OBV) indicator.
+        :param file_path: OHLCV file.
+        :param k_period: %K window.
+        :param d_period: %D SMA window.
+        :return: (%K, %D).
+        """
+        with MarketAnalysis._lock:
+            df = MarketAnalysis._load_df(file_path)
+            low = df["low"].rolling(k_period).min()
+            high = df["high"].rolling(k_period).max()
+            k = 100 * (df["close"] - low) / (high - low)
+            d = k.rolling(d_period).mean()
+            return k, d
 
-        :return: A pandas Series with the OBV values.
-        :raises ValueError: If the DataFrame is not loaded.
-        :raises Exception: For other calculation errors.
+    @staticmethod
+    def get_sma(file_path: str, period: int = 30) -> pd.Series:
         """
-        try:
-            logger.info("Calculating OBV")
-            with self._lock:
-                if self.df is None:
-                    raise ValueError("DataFrame is not loaded. Please call get_ohlcv first.")
-                obv = (self.df['volume'] * (~self.df['close'].diff().le(0) * 2 - 1)).cumsum()
-            logger.info("OBV calculation completed")
-            return obv
-        except Exception as e:
-            logger.exception("Error calculating OBV: %s", e)
-            raise
+        :param file_path: OHLCV file.
+        :param period: Window size.
+        :return: SMA series.
+        """
+        with MarketAnalysis._lock:
+            df = MarketAnalysis._load_df(file_path)
+            return df["close"].rolling(period).mean()
 
-    def get_stochastic_oscillator(self, k_period=14, d_period=3):
+    @staticmethod
+    def get_ema(file_path: str, period: int = 30) -> pd.Series:
         """
-        Calculates the Stochastic Oscillator, including %K and %D lines.
+        :param file_path: OHLCV file.
+        :param period: EMA span.
+        :return: EMA series.
+        """
+        with MarketAnalysis._lock:
+            df = MarketAnalysis._load_df(file_path)
+            return df["close"].ewm(span=period, adjust=False).mean()
 
-        :param k_period: The period for calculating %K.
-        :param d_period: The period for calculating %D (moving average of %K).
-        :return: A tuple of two pandas Series: (%K line, %D line).
-        :raises ValueError: If the DataFrame is not loaded.
-        :raises Exception: For other calculation errors.
+    @staticmethod
+    def get_bollinger_bands(
+        file_path: str, period: int = 20, std_dev: int = 2
+    ) -> tuple[pd.Series, pd.Series, pd.Series]:
         """
-        try:
-            logger.info("Calculating Stochastic Oscillator with k_period=%d and d_period=%d", k_period, d_period)
-            with self._lock:
-                if self.df is None:
-                    raise ValueError("DataFrame is not loaded. Please call get_ohlcv first.")
-                low = self.df['low'].rolling(window=k_period).min()
-                high = self.df['high'].rolling(window=k_period).max()
-                k_line = 100 * ((self.df['close'] - low) / (high - low))
-                d_line = k_line.rolling(window=d_period).mean()
-            logger.info("Stochastic Oscillator calculation completed")
-            return k_line, d_line
-        except Exception as e:
-            logger.exception("Error calculating Stochastic Oscillator: %s", e)
-            raise
+        :param file_path: OHLCV file.
+        :param period: SMA window.
+        :param std_dev: Std‑dev multiplier.
+        :return: (upper, middle, lower bands).
+        """
+        with MarketAnalysis._lock:
+            df = MarketAnalysis._load_df(file_path)
+            sma = df["close"].rolling(period).mean()
+            rstd = df["close"].rolling(period).std()
+            upper = sma + std_dev * rstd
+            lower = sma - std_dev * rstd
+            return upper, sma, lower
 
-    def get_sma(self, period=30):
+    @staticmethod
+    def get_momentum(file_path: str, period: int = 14) -> pd.Series:
         """
-        Calculates the Simple Moving Average (SMA) based on closing prices.
-
-        :param period: The period for the SMA calculation.
-        :return: A pandas Series with the SMA values.
-        :raises ValueError: If the DataFrame is not loaded.
-        :raises Exception: For other calculation errors.
+        :param file_path: OHLCV file.
+        :param period: Look‑back difference.
+        :return: Momentum series.
         """
-        try:
-            logger.info("Calculating SMA with period %d", period)
-            with self._lock:
-                if self.df is None:
-                    raise ValueError("DataFrame is not loaded. Please call get_ohlcv first.")
-                sma = self.df['close'].rolling(window=period).mean()
-            logger.info("SMA calculation completed")
-            return sma
-        except Exception as e:
-            logger.exception("Error calculating SMA: %s", e)
-            raise
-
-    def get_ema(self, period=30):
-        """
-        Calculates the Exponential Moving Average (EMA) based on closing prices.
-
-        :param period: The period for the EMA calculation.
-        :return: A pandas Series with the EMA values.
-        :raises ValueError: If the DataFrame is not loaded.
-        :raises Exception: For other calculation errors.
-        """
-        try:
-            logger.info("Calculating EMA with period %d", period)
-            with self._lock:
-                if self.df is None:
-                    raise ValueError("DataFrame is not loaded. Please call get_ohlcv first.")
-                ema = self.df['close'].ewm(span=period, adjust=False).mean()
-            logger.info("EMA calculation completed")
-            return ema
-        except Exception as e:
-            logger.exception("Error calculating EMA: %s", e)
-            raise
-
-    def get_bollinger_bands(self, period=20, std_dev=2):
-        """
-        Calculates Bollinger Bands.
-
-        :param period: The period for calculating the SMA underlying the Bollinger Bands.
-        :param std_dev: The number of standard deviations for the upper and lower bands.
-        :return: A tuple of three pandas Series: (upper band, middle band [SMA], lower band).
-        :raises ValueError: If the DataFrame is not loaded.
-        :raises Exception: For other calculation errors.
-        """
-        try:
-            logger.info("Calculating Bollinger Bands with period %d and std_dev %d", period, std_dev)
-            with self._lock:
-                if self.df is None:
-                    raise ValueError("DataFrame is not loaded. Please call get_ohlcv first.")
-                sma = self.df['close'].rolling(window=period).mean()
-                rstd = self.df['close'].rolling(window=period).std()
-                upper_band = sma + std_dev * rstd
-                lower_band = sma - std_dev * rstd
-            logger.info("Bollinger Bands calculation completed")
-            return upper_band, sma, lower_band
-        except Exception as e:
-            logger.exception("Error calculating Bollinger Bands: %s", e)
-            raise
-
-    def get_momentum(self, period=14):
-        """
-        Calculates the Momentum indicator based on closing prices.
-
-        :param period: The period for the momentum calculation.
-        :return: A pandas Series with the momentum values.
-        :raises ValueError: If the DataFrame is not loaded.
-        :raises Exception: For other calculation errors.
-        """
-        try:
-            logger.info("Calculating Momentum with period %d", period)
-            with self._lock:
-                if self.df is None:
-                    raise ValueError("DataFrame is not loaded. Please call get_ohlcv first.")
-                momentum = self.df['close'].diff(period)
-            logger.info("Momentum calculation completed")
-            return momentum
-        except Exception as e:
-            logger.exception("Error calculating Momentum: %s", e)
-            raise
+        with MarketAnalysis._lock:
+            df = MarketAnalysis._load_df(file_path)
+            return df["close"].diff(period)

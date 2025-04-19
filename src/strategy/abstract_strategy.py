@@ -6,6 +6,7 @@ from src.config.logger_config import logger
 
 from src.db.queries.events import add_event
 from src.db.queries.strategies import add_strategy, update_strategy_status
+from src.market_analysis import MarketAnalysis
 
 
 class AbstractStrategy(ABC):
@@ -44,9 +45,6 @@ class AbstractStrategy(ABC):
         update_strategy_status(self.strategy_id, "inactive")
         logger.info(f"[{self.strategy_name}] Strategy stopped.")
 
-    def on_new_data(self, file_path: str):
-        logger.info(f"[{self.strategy_name}] signal from market data.")
-
     def _run_loop(self):
         """
         Main strategy loop, periodically checks for entry and exit signals.
@@ -60,12 +58,18 @@ class AbstractStrategy(ABC):
         """
         Create a new SignalEvent in the event manager.
         """
+        target_price = 10000
         add_event(event_manager_id=self.event_manager_id, event_type="SignalEvent", priority=2,
                   payload={"strategy_id": self.strategy_id,
                            "strategy_name": self.strategy_name,
                            "trading_pair": self.trading_pair,
-                           "direction": direction})
+                           "direction": direction,
+                           "target_price": target_price})
         logger.info(f"[{self.strategy_name}] SignalEvent created: {direction}")
+
+    @abstractmethod
+    def on_new_data(self, file_path: str):
+        pass
 
     @abstractmethod
     def check_entry_signal(self):

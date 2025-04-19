@@ -36,3 +36,20 @@ def get_portfolio_by_id(portfolio_id):
     """
     query = "SELECT * FROM portfolios WHERE portfolio_id = %(portfolio_id)s"
     return execute_query(query, {"portfolio_id": portfolio_id})
+
+
+def update_portfolio_status(portfolio_id, has_executing_order):
+    """
+        Updates the status and timestamps of an order.
+
+        :param portfolio_id:  UUID of the portfolio.
+        :param has_executing_order: New status of the portfolio.
+    """
+    query = """
+        ALTER TABLE portfolios 
+        UPDATE 
+            has_executing_order = %(has_executing_order)s
+        WHERE portfolio_id = %(portfolio_id)s
+        """
+
+    execute_query(query, {"portfolio_id": portfolio_id, "has_executing_order": has_executing_order})

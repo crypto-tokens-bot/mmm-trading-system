@@ -35,10 +35,14 @@ def create_fake_orders():
 
 
 def create_fake_portfolio():
+
     event_manager = EventManager.create_new(mode="live")
     event_manager.start()
     strategy = AbstractStrategy.create_strategy(RandomStrategy, event_manager.event_manager_id, "BTC/USDT", "Random", {})
     strategy.start()
+
+    market = MarketDataProvider(BybitConnector(testnet=True))
+    market.subscribe(strategy, strategy.trading_pair, '1m')
 
     risk_controller_id = add_risk_controller("aggressive", 0.5, 1.5,    {
         'BTC/USDT': 0.5,
@@ -58,6 +62,7 @@ def create_fake_portfolio():
     event_manager.subscribe_portfolio_to_strategy(portfolio, strategy.strategy_id)
 
     time.sleep(40)
+    market.stop()
     strategy.stop()
     event_manager.stop()
 

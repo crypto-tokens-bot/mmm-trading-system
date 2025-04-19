@@ -8,5 +8,6 @@ CREATE TABLE IF NOT EXISTS portfolios
     currency String,
     initial_balance Decimal(18, 8),
     exchange String NOT NULL,
+    has_executing_order Bool DEFAULT false,
     PRIMARY KEY (portfolio_id)
 ) ENGINE = MergeTree();

@@ -12,6 +12,7 @@ class TradeDecision:
     direction: str                # "buy" | "sell"
     trading_pair: str               # e.g. "BTC/USDT"
     quantity: Decimal        # units to trade
+    target_price: Decimal
     stop_loss: Optional[Decimal] = None
     take_profit: Optional[Decimal] = None
 
@@ -71,10 +72,11 @@ class RiskController:
         payload = signal_event["payload"]
         trading_pair = payload["trading_pair"]
         direction = payload["direction"]
+        target_price = payload["target_price"]
         current_qty = self.portfolio.managed_assets.get(trading_pair, Decimal("0"))
 
         if direction == "sell":
-            return None if current_qty == 0 else TradeDecision(direction=direction, trading_pair=trading_pair, quantity=current_qty)
+            return None if current_qty == 0 else TradeDecision(direction=direction, target_price=target_price, trading_pair=trading_pair, quantity=current_qty)
 
         total_qty = sum(self.portfolio.managed_assets.values()) or Decimal("1")
         current_share = current_qty / total_qty
@@ -82,5 +84,4 @@ class RiskController:
             return None
 
         buy_qty = Decimal("0.0001") # fix
-        # fix stop_loss and take_profit
-        return TradeDecision(direction=direction, trading_pair=trading_pair, quantity=buy_qty, stop_loss=None, take_profit=None)
+        return TradeDecision(direction=direction, trading_pair=trading_pair, quantity=buy_qty, target_price=target_price, stop_loss=None, take_profit=None)

@@ -97,7 +97,10 @@ class EventManager(threading.Thread):
                 subscribed_portfolios = self._strategy_subscriptions[strategy_id]
                 for portfolio in subscribed_portfolios:
                     try:
-                        portfolio.handle_signal_event(event)
+                        if not portfolio.has_executing_order:
+                            portfolio.handle_signal_event(event)
+                        else:
+                            logger.info(f"Signal ignored for portfolio {portfolio.portfolio_id}.")
                     except Exception as e:
                         logger.error(f"Failed to notify portfolio {portfolio.portfolio_id}: {e}")
             elif event['event_type'] == "error":

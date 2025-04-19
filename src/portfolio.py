@@ -2,7 +2,7 @@ import random
 from decimal import Decimal
 
 from src.config.logger_config import logger
-from src.db.queries.portfolios import get_portfolio_by_id, add_portfolio
+from src.db.queries.portfolios import get_portfolio_by_id, add_portfolio, update_portfolio_status
 from src.order_processing.order_controller import OrderController
 from src.risk_controller import RiskController, TradeDecision
 
@@ -39,6 +39,7 @@ class Portfolio:
             self.risk_controller_id,
             self
         )
+        self.has_executing_order = data['has_executing_order']
 
         logger.info(f"Initialized portfolio: {self.portfolio_id} - {self.portfolio_name}")
 
@@ -84,6 +85,8 @@ class Portfolio:
             logger.info("Signal rejected by RiskController")
             return
 
+        self.has_executing_order = True
+        update_portfolio_status(self.portfolio_id, self.has_executing_order)
         OrderController().create_order(
             portfolio_id=self.portfolio_id,
             event_manager_id=self.event_manager_id,
@@ -91,7 +94,7 @@ class Portfolio:
             order_type='market',
             order_category='spot',
             order_side=decision.direction,
-            target_price=Decimal("0"), # fix
+            target_price=decision.target_price,
             order_status="pending",
             symbol=decision.trading_pair,
             base_currency=decision.trading_pair[:decision.trading_pair.index('/')],
@@ -109,4 +112,6 @@ class Portfolio:
         :param event: Dictionary representing the order filled event. Must contain 'event_type' and 'payload' with 'order_id'.
         """
         order_id = event['payload']['order_id']
+        self.has_executing_order = False
+        update_portfolio_status(self.portfolio_id, self.has_executing_order)
         logger.info(f"Portfolio {self.portfolio_id} received order filled event for order {order_id}")
