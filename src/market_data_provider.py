@@ -124,7 +124,7 @@ class MarketDataProvider(threading.Thread):
 
             logger.success("Data saved to {}", file_path)
 
-            self.notify_subscribers(symbol, timeframe, file_path.name)
+            self.notify_subscribers(symbol, timeframe, str(file_path))
 
         except Exception as e:
             logger.error("Error fetching data for {} {}: {}", symbol, timeframe, e)

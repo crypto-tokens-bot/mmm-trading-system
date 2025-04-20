@@ -1,4 +1,6 @@
 import threading
+from decimal import Decimal
+
 import pandas as pd
 
 
@@ -21,16 +23,23 @@ class MarketAnalysis:
         :raises FileNotFoundError: If file is missing.
         :raises ValueError: If columns are incomplete.
         """
-        with MarketAnalysis._lock:
-            if file_path.endswith(".parquet"):
-                df = pd.read_parquet(file_path)
-            else:
-                df = pd.read_csv(file_path)
+        df = pd.read_csv(file_path)
+        need = {"open", "high", "low", "close", "volume"}
+        if not need.issubset(df.columns):
+            raise ValueError(f"DataFrame must contain: {', '.join(sorted(need))}")
+        return df
 
-            need = {"open", "high", "low", "close", "volume"}
-            if not need.issubset(df.columns):
-                raise ValueError(f"Input must contain: {', '.join(sorted(need))}")
-            return df
+    @staticmethod
+    def get_target_price(file_path: str) -> Decimal:
+        """
+        Return the latest close price (target price for a trade).
+
+        :param file_path: Path to the OHLCV file.
+        :return: Most recent close price.
+        """
+        with MarketAnalysis._lock:
+            df = MarketAnalysis._load_df(file_path)
+            return Decimal(df["close"].iloc[-1])
 
     @staticmethod
     def get_rsi(file_path: str, period: int = 14) -> pd.Series:

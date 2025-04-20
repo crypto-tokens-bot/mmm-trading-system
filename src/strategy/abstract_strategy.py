@@ -1,12 +1,14 @@
 import threading
 import time
 from abc import ABC, abstractmethod
-from typing import Dict, Any
+from decimal import Decimal
+from typing import Dict, Any, Optional
+
 from src.config.logger_config import logger
 
 from src.db.queries.events import add_event
-from src.db.queries.strategies import add_strategy, update_strategy_status
-from src.market_analysis import MarketAnalysis
+from src.db.queries.strategies import add_strategy
+
 
 
 class AbstractStrategy(ABC):
@@ -22,49 +24,20 @@ class AbstractStrategy(ABC):
         self.trading_pair = trading_pair
         self.strategy_name = strategy_name
         self.parameters = parameters
-        self._thread = None
-        self._running = False
+        self.target_price = Optional[Decimal] | None
+        logger.info(f"[{self.strategy_name}] Strategy created.")
 
-    def start(self):
-        """
-        Start the strategy in a separate thread and mark it as active in the database.
-        """
-        self._running = True
-        self._thread = threading.Thread(target=self._run_loop, daemon=True)
-        self._thread.start()
-        update_strategy_status(self.strategy_id, "active")
-        logger.info(f"[{self.strategy_name}] Strategy started.")
-
-    def stop(self):
-        """
-        Stop the strategy and update its status in the database.
-        """
-        self._running = False
-        if self._thread:
-            self._thread.join()
-        update_strategy_status(self.strategy_id, "inactive")
-        logger.info(f"[{self.strategy_name}] Strategy stopped.")
-
-    def _run_loop(self):
-        """
-        Main strategy loop, periodically checks for entry and exit signals.
-        """
-        while self._running:
-            self.check_entry_signal()
-            self.check_exit_signal()
-            time.sleep(5)
 
     def _generate_signal_event(self, direction: str):
         """
         Create a new SignalEvent in the event manager.
         """
-        target_price = 10000
         add_event(event_manager_id=self.event_manager_id, event_type="SignalEvent", priority=2,
                   payload={"strategy_id": self.strategy_id,
                            "strategy_name": self.strategy_name,
                            "trading_pair": self.trading_pair,
                            "direction": direction,
-                           "target_price": target_price})
+                           "target_price": str(self.target_price)})
         logger.info(f"[{self.strategy_name}] SignalEvent created: {direction}")
 
     @abstractmethod

@@ -38,8 +38,9 @@ def create_fake_portfolio():
 
     event_manager = EventManager.create_new(mode="live")
     event_manager.start()
+
     strategy = AbstractStrategy.create_strategy(RandomStrategy, event_manager.event_manager_id, "BTC/USDT", "Random", {})
-    strategy.start()
+
 
     market = MarketDataProvider(BybitConnector(testnet=True))
     market.subscribe(strategy, strategy.trading_pair, '1m')
@@ -63,25 +64,6 @@ def create_fake_portfolio():
 
     time.sleep(40)
     market.stop()
-    strategy.stop()
-    event_manager.stop()
-
-
-def create_fake_market_data_provider():
-    market = MarketDataProvider(BybitConnector(testnet=True))
-    event_manager = EventManager.create_new(mode="live")
-    event_manager.start()
-    strategy1 = AbstractStrategy.create_strategy(RandomStrategy, event_manager.event_manager_id, "BTC/USDT", "Random",
-                                                {})
-    strategy2 = AbstractStrategy.create_strategy(RandomStrategy, event_manager.event_manager_id, "BTC/USDT", "Random",
-                                                {})
-    strategy1.start()
-    market.subscribe(strategy1, strategy1.trading_pair, '1m')
-    market.subscribe(strategy2, strategy2.trading_pair, '1h')
-    time.sleep(30)
-    market.stop()
-    strategy1.stop()
-    strategy2.stop()
     event_manager.stop()
 
 
