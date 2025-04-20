@@ -10,6 +10,7 @@ from src.config.logger_config import logger
 
 import pandas as pd
 
+
 from src.db.queries.orders import get_order_by_id, update_order_status, update_order_exchange_id
 
 
@@ -41,6 +42,12 @@ class ExchangeConnector(ABC):
         self._exchange = exchange(config)
         if testnet:
             self._exchange.set_sandbox_mode(True)
+
+    @staticmethod
+    def get_exchange_connector(exchange_name, testnet=True):
+        from src.connectors.bybit_connector import BybitConnector
+        if exchange_name == 'bybit':
+            return BybitConnector(testnet=testnet)
 
     def get_order_book(self, symbol, limit=None):
         return self._exchange.fetch_order_book(symbol, limit)
@@ -221,8 +228,7 @@ class ExchangeConnector(ABC):
         except ccxt.OrderNotFound as e:
             pass
 
-        orders = self._exchange.fetch_canceled_order(
-            id=order_exchange_id,
+        orders = self._exchange.fetch_canceled_orders(
             symbol=symbol
         )
         for order in orders:

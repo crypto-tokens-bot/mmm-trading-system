@@ -98,7 +98,8 @@ class LiveOrderExecutor(OrderExecutor):
                 logger.debug(f"Order {order_id} status: {status}")
                 if status == "closed":
                     update_order_status(order_id, "executed")
-                    add_event(order['event_manager_id'], "OrderExecutedEvent", 2, {"order_id": str(order_id), "portfolio_id": str(order['portfolio_id'])})
+
+                    add_event(order['event_manager_id'], "OrderExecutedEvent", 2, {"order_id": str(order_id), 'order_exchange_id': str(order['order_exchange_id']), "portfolio_id": str(order['portfolio_id']), 'symbol': order['symbol']})
                     logger.info(f"Order {order_id} executed.")
                 elif status == "canceled" or status == "expired" or status == "rejected":
                     update_order_status(order_id, status)

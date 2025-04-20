@@ -1,7 +1,9 @@
 import random
 from decimal import Decimal
+from math import lgamma
 
 from src.config.logger_config import logger
+from src.connectors.exchange_connector import ExchangeConnector
 from src.db.queries.portfolios import get_portfolio_by_id, add_portfolio, update_portfolio_status
 from src.order_processing.order_controller import OrderController
 from src.risk_controller import RiskController, TradeDecision
@@ -34,7 +36,7 @@ class Portfolio:
         self.managed_assets = data['managed_assets']
         self.currency = data['currency']
         self.initial_balance = data['initial_balance']
-        self.exchange = data['exchange']
+        self.exchange = ExchangeConnector.get_exchange_connector(data['exchange'])
         self.risk_controller = RiskController.create_risk_controller(
             self.risk_controller_id,
             self
@@ -112,6 +114,10 @@ class Portfolio:
         :param event: Dictionary representing the order filled event. Must contain 'event_type' and 'payload' with 'order_id'.
         """
         order_id = event['payload']['order_id']
+        order_exchange_id = event['payload']['order_exchange_id']
+        symbol = event['payload']['symbol']
+        order_info = self.exchange.get_order_info(order_exchange_id, symbol)
+        logger.debug(f"Order executed info {order_info}")
         self.has_executing_order = False
         update_portfolio_status(self.portfolio_id, self.has_executing_order)
         logger.info(f"Portfolio {self.portfolio_id} received order filled event for order {order_id}")
