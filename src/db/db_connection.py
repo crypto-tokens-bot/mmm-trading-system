@@ -40,6 +40,12 @@ def execute_query(query, params=None):
         return None
 
 
-def to_map_literal(d):
-    parts = [f"'{k}': {Decimal(str(v))}" for k, v in d.items()]
+def to_map_literal(data, update_request=False, scale=8):
+    parts = [f"'{k}': {Decimal(str(v))}" for k, v in data.items()]
+    if update_request:
+        parts = [
+            f"'{k}', toDecimal64({Decimal(str(v))}, {scale})"
+            for k, v in data.items()
+        ]
+        return f"map({', '.join(parts)})"
     return '{' + ', '.join(parts) + '}'

@@ -53,3 +53,20 @@ def update_portfolio_status(portfolio_id, has_executing_order):
         """
 
     execute_query(query, {"portfolio_id": portfolio_id, "has_executing_order": has_executing_order})
+
+
+def update_managed_assets(portfolio_id, managed_assets):
+    """
+    Updates the managed_assets of a portfolio.
+
+    :param portfolio_id: UUID of the portfolio.
+    :param managed_assets: Dictionary of updated managed assets.
+    """
+    managed_assets = to_map_literal(managed_assets, update_request=True)
+    query = f"""
+        ALTER TABLE portfolios 
+        UPDATE 
+            managed_assets = {managed_assets}
+        WHERE portfolio_id = %(portfolio_id)s
+    """
+    execute_query(query, {"portfolio_id": portfolio_id})

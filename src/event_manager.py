@@ -48,8 +48,6 @@ class EventManager(threading.Thread):
             if event:
                 logger.info(
                     f"EventManager {self.event_manager_id}: Fetched event {event['event_id']} with priority {event['priority']}")
-            else:
-                logger.info(f"EventManager {self.event_manager_id}: No unprocessed events found.")
             return event
         except Exception as e:
             logger.error(f"Error fetching next event for EventManager {self.event_manager_id}: {e}")
@@ -132,11 +130,12 @@ class EventManager(threading.Thread):
             self.running = True
             logger.info(f"EventManager {self.event_manager_id} started processing events.")
 
-            while self.running:
+            while True:
                 event = self._get_next_event()
                 if not event:
-                    logger.info(f"EventManager {self.event_manager_id}: No more events to process. Waiting...")
-                    time.sleep(3)
+                    if not self.running:
+                        break
+                    # logger.info(f"EventManager {self.event_manager_id}: No more events to process. Waiting...")
                 else:
                     self._handle_event(event)
 
@@ -151,7 +150,6 @@ class EventManager(threading.Thread):
         """
         try:
             self.running = False
-
             logger.info(f"EventManager {self.event_manager_id} is shutting down.")
         except Exception as e:
             logger.error(f"Error stopping EventManager {self.event_manager_id}: {e}")

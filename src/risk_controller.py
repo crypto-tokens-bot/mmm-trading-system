@@ -9,9 +9,9 @@ from src.db.queries.risk_controllers import get_risk_controller_by_id
 @dataclass
 class TradeDecision:
     """Result of a risk‑check for a single strategy signal."""
-    direction: str                # "buy" | "sell"
-    trading_pair: str               # e.g. "BTC/USDT"
-    quantity: Decimal        # units to trade
+    direction: str  # "buy" | "sell"
+    trading_pair: str  # e.g. "BTC/USDT"
+    quantity: Decimal  # units to trade
     target_price: Decimal
     stop_loss: Optional[Decimal] = None
     take_profit: Optional[Decimal] = None
@@ -28,13 +28,13 @@ class RiskController:
     """
 
     def __init__(
-        self,
-        risk_controller_id: str,
-        risk_model: str,
-        stop_loss_coefficient: Decimal,
-        take_profit_coefficient: Decimal,
-        max_asset_share: Dict[str, Decimal],
-        portfolio,
+            self,
+            risk_controller_id: str,
+            risk_model: str,
+            stop_loss_coefficient: Decimal,
+            take_profit_coefficient: Decimal,
+            max_asset_share: Dict[str, Decimal],
+            portfolio,
     ):
         self.id = risk_controller_id
         self.risk_model = risk_model
@@ -71,17 +71,39 @@ class RiskController:
         """
         payload = signal_event["payload"]
         trading_pair = payload["trading_pair"]
+        base_asset, quote_asset = trading_pair.split('/')
         direction = payload["direction"]
-        target_price = payload["target_price"]
-        current_qty = self.portfolio.managed_assets.get(trading_pair, Decimal("0"))
+        target_price = Decimal(payload["target_price"])
+
+        current_qty = Decimal(self.portfolio.managed_assets.get(base_asset, 0))
+        quote_balance = Decimal(self.portfolio.managed_assets.get(quote_asset, 0))
+        max_share = self.max_asset_share.get(base_asset, Decimal("1"))
+        max_value = Decimal(self.portfolio.initial_balance) * max_share
+        max_qty = max_value / target_price
 
         if direction == "sell":
-            return None if current_qty == 0 else TradeDecision(direction=direction, target_price=target_price, trading_pair=trading_pair, quantity=current_qty)
+            return None if current_qty <= Decimal("1e-5") else TradeDecision(
+                direction=direction,
+                target_price=target_price,
+                trading_pair=trading_pair,
+                quantity=current_qty
+            )
 
-        total_qty = sum(self.portfolio.managed_assets.values()) or Decimal("1")
-        current_share = current_qty / total_qty
-        if current_share >= self.max_asset_share.get(trading_pair, Decimal("1")):
+        allowed_to_buy = max_qty - current_qty
+        if allowed_to_buy <= Decimal("0"):
             return None
 
-        buy_qty = Decimal("0.0001") # fix
-        return TradeDecision(direction=direction, trading_pair=trading_pair, quantity=buy_qty, target_price=target_price, stop_loss=None, take_profit=None)
+        affordable_qty = quote_balance / target_price
+        final_qty = min(allowed_to_buy, affordable_qty).quantize(Decimal("0.000001"))
+        print(quote_balance, max_value, target_price, max_qty, affordable_qty, final_qty)
+        if final_qty <= Decimal("1e-3"):
+            return None
+
+        return TradeDecision(
+            direction=direction,
+            trading_pair=trading_pair,
+            quantity=final_qty,
+            target_price=target_price,
+            stop_loss=None,
+            take_profit=None
+        )

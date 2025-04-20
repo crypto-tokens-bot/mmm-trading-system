@@ -110,16 +110,38 @@ class ExchangeConnector(ABC):
             result = self._exchange.create_order(coin, order_type, side, amount, params=params)
         return result
 
-    def get_last_order(self, symbol):
-        all_orders = self._exchange.fetch_closed_orders(symbol, limit=1)
-        open_orders = self._exchange.fetch_open_orders(symbol, limit=1)
-        for order in open_orders:
-            all_orders.append(order)
-        canceled_orders = self._exchange.fetch_canceled_orders(symbol, limit=1)
-        for order in canceled_orders:
-            all_orders.append(order)
-        all_orders.sort(key=lambda order: order['datetime'], reverse=True)
-        return all_orders[0]
+    def get_order_info(
+            self,
+            order_exchange_id: str,
+            symbol: str | None = None
+    ):
+        try:
+            order = self._exchange.fetch_closed_order(
+                id=order_exchange_id,
+                symbol=symbol
+            )
+            return order
+        except ccxt.OrderNotFound as e:
+            pass
+
+
+        try:
+            order = self._exchange.fetch_open_order(
+                id=order_exchange_id,
+                symbol=symbol
+            )
+            return order
+        except ccxt.OrderNotFound as e:
+            pass
+
+        orders = self._exchange.fetch_canceled_orders(
+            symbol=symbol
+        )
+        for order in orders:
+            if order['info']['orderId'] == order_exchange_id:
+                return order
+
+        return None
 
     def create_spot_order(self, order_id):
         """
@@ -133,10 +155,13 @@ class ExchangeConnector(ABC):
         try:
             # Retrieve order details from the database.
             order_details = get_order_by_id(order_id)[0]
-            self.create_order(order_details['symbol'], order_details['order_type'],
+            result = self.create_order(order_details['symbol'], order_details['order_type'],
                                               order_details['order_side'], order_details['initial_quantity'])
-            last_order = self.get_last_order(order_details['symbol'])
-            order_exchange_id = last_order['info']['orderId']
+            last_order = None
+            while last_order is None:
+                last_order = self.get_order_info(result['id'], result['symbol'])
+                time.sleep(1)
+            order_exchange_id = last_order['id']
             update_order_status(order_id, "executing")
             update_order_exchange_id(order_id, order_exchange_id)
             return order_id
@@ -204,44 +229,3 @@ class ExchangeConnector(ABC):
             raise
 
 
-    def get_order_info(
-            self,
-            order_exchange_id: str,
-            symbol: str | None = None
-    ):
-        try:
-            order = self._exchange.fetch_closed_order(
-                id=order_exchange_id,
-                symbol=symbol
-            )
-            return order
-        except ccxt.OrderNotFound as e:
-            pass
-
-
-        try:
-            order = self._exchange.fetch_open_order(
-                id=order_exchange_id,
-                symbol=symbol
-            )
-            return order
-        except ccxt.OrderNotFound as e:
-            pass
-
-        orders = self._exchange.fetch_canceled_orders(
-            symbol=symbol
-        )
-        for order in orders:
-            if order['info']['orderId'] == order_exchange_id:
-                return order
-
-        return None
-        # try:
-        #     order = self._exchange.fetch_canceled_orders(
-        #         id=order_exchange_id,
-        #         symbol=symbol
-        #     )
-        #     print(order)
-        #     return order["status"]
-        # except ccxt.OrderNotFound as e:
-        #     pass

@@ -4,7 +4,7 @@ from math import lgamma
 
 from src.config.logger_config import logger
 from src.connectors.exchange_connector import ExchangeConnector
-from src.db.queries.portfolios import get_portfolio_by_id, add_portfolio, update_portfolio_status
+from src.db.queries.portfolios import get_portfolio_by_id, add_portfolio, update_portfolio_status, update_managed_assets
 from src.order_processing.order_controller import OrderController
 from src.risk_controller import RiskController, TradeDecision
 
@@ -86,7 +86,6 @@ class Portfolio:
         if decision is None:
             logger.info("Signal rejected by RiskController")
             return
-
         self.has_executing_order = True
         update_portfolio_status(self.portfolio_id, self.has_executing_order)
         OrderController().create_order(
@@ -117,7 +116,26 @@ class Portfolio:
         order_exchange_id = event['payload']['order_exchange_id']
         symbol = event['payload']['symbol']
         order_info = self.exchange.get_order_info(order_exchange_id, symbol)
-        logger.debug(f"Order executed info {order_info}")
+        logger.debug(order_info)
+        base_asset, quote_asset = symbol.split('/')
+        filled_quantity = Decimal(order_info['filled'])
+        cost = Decimal(order_info['cost'])
+        fee_cost = Decimal(order_info['fee'].get('cost', 0))
+        fee_currency = order_info['fee'].get('currency')
+        if order_info['side'] == 'buy':
+            self.managed_assets[base_asset] = self.managed_assets.get(base_asset, Decimal(0)) + filled_quantity
+            self.managed_assets[quote_asset] = self.managed_assets.get(quote_asset, Decimal(0)) - cost
+        else:
+            self.managed_assets[base_asset] = self.managed_assets.get(base_asset, Decimal(0)) - filled_quantity
+            self.managed_assets[quote_asset] = self.managed_assets.get(quote_asset, Decimal(0)) + cost
+
+        self.managed_assets[fee_currency] -= fee_cost
+        self.managed_assets[base_asset] = max(self.managed_assets[base_asset], 0)
+        self.managed_assets[quote_asset] = max(self.managed_assets[quote_asset], 0)
+
+
+        logger.debug(self.managed_assets)
+        update_managed_assets(self.portfolio_id, self.managed_assets)
         self.has_executing_order = False
         update_portfolio_status(self.portfolio_id, self.has_executing_order)
         logger.info(f"Portfolio {self.portfolio_id} received order filled event for order {order_id}")
