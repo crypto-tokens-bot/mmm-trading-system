@@ -3,7 +3,8 @@ from src.config.logger_config import logger
 from queue import Queue
 
 from src.db.queries.events import add_event
-from src.db.queries.orders import get_order_by_id, get_executing_orders, update_order_status, update_order_exchange_id
+from src.db.queries.orders import get_order_by_id, get_executing_orders, update_order_status, update_order_exchange_id, \
+    update_order_info
 from src.order_processing.order_executor import OrderExecutor
 
 
@@ -86,15 +87,22 @@ class LiveOrderExecutor(OrderExecutor):
                 #     continue
 
                 exchange = self.exchanges['bybit']
-                status = exchange.check_order_status(order['order_exchange_id'], order['symbol'])
+                order_info = exchange.get_order_info(order['order_exchange_id'], order['symbol'])
+                if order_info is None:
+                    logger.error(f"Order {order_id} not found during monitoring.")
+                    return
+
+
+                update_order_info(order_id, executed_quantity=order_info['filled'], execution_summary=order_info['trades'], average_price=order_info['average'], total_fee=order_info['fee']['cost'])
+                status = order_info['status']
                 logger.debug(f"Order {order_id} status: {status}")
-                if status == "executed":
+                if status == "closed":
                     update_order_status(order_id, "executed")
                     add_event(order['event_manager_id'], "OrderExecutedEvent", 2, {"order_id": str(order_id), "portfolio_id": str(order['portfolio_id'])})
                     logger.info(f"Order {order_id} executed.")
-                elif status == "cancelled":
-                    update_order_status(order_id, "cancelled")
-                    logger.warning(f"Order {order_id} cancelled.")
+                elif status == "canceled" or status == "expired" or status == "rejected":
+                    update_order_status(order_id, status)
+                    logger.warning(f"Order {order_id} {status}.")
                 else:
                     self._order_queue.put(order_id)
             except Exception as e:

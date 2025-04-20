@@ -91,6 +91,20 @@ def update_order_status(order_id, status):
     execute_query(query, {"order_id": order_id, "status": status})
 
 
+def update_order_info(order_id, executed_quantity, execution_summary, average_price, total_fee):
+    query = """
+            ALTER TABLE orders 
+            UPDATE 
+                executed_quantity = %(executed_quantity)s,
+                execution_summary = %(execution_summary)s,
+                average_price = %(average_price)s,
+                total_fee = %(total_fee)s,
+                updated_at = now()
+            WHERE order_id = %(order_id)s
+            """
+    execute_query(query,  locals())
+
+
 def get_executing_orders():
     query = """
     SELECT order_id 

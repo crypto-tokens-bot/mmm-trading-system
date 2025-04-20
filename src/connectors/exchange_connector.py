@@ -197,7 +197,7 @@ class ExchangeConnector(ABC):
             raise
 
 
-    def check_order_status(
+    def get_order_info(
             self,
             order_exchange_id: str,
             symbol: str | None = None
@@ -207,7 +207,7 @@ class ExchangeConnector(ABC):
                 id=order_exchange_id,
                 symbol=symbol
             )
-            return 'executed'
+            return order
         except ccxt.OrderNotFound as e:
             pass
 
@@ -217,13 +217,19 @@ class ExchangeConnector(ABC):
                 id=order_exchange_id,
                 symbol=symbol
             )
-            return 'executing'
+            return order
         except ccxt.OrderNotFound as e:
             pass
 
+        orders = self._exchange.fetch_canceled_order(
+            id=order_exchange_id,
+            symbol=symbol
+        )
+        for order in orders:
+            if order['info']['orderId'] == order_exchange_id:
+                return order
 
-
-        return "cancelled"
+        return None
         # try:
         #     order = self._exchange.fetch_canceled_orders(
         #         id=order_exchange_id,

@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS orders
     order_category String NOT NULL,
     order_side String NOT NULL,
     target_price Decimal(18, 8) NOT NULL,
+    average_price Decimal(18, 8) DEFAULT NULL,
     order_status String NOT NULL,
     symbol String NOT NULL,
     base_currency String NOT NULL,
