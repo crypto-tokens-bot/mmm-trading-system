@@ -63,6 +63,8 @@ class LiveOrderExecutor(OrderExecutor):
 
             if order['order_category'] == 'spot':
                 self._order_queue.put(exchange.create_spot_order(order_id))
+            elif order['order_category'] == 'stop_loss' or order['order_category'] == 'take_profit':
+                self._order_queue.put(exchange.create_conditional_order(order_id))
             logger.info(f"Order {order_id} is now executing.")
         except Exception as e:
             logger.exception("Error executing order %s: %s", order_id, e)
@@ -96,9 +98,9 @@ class LiveOrderExecutor(OrderExecutor):
                 update_order_info(order_id, executed_quantity=order_info['filled'], execution_summary=order_info['trades'], average_price=order_info['average'], total_fee=order_info['fee']['cost'])
                 status = order_info['status']
                 logger.debug(f"Order {order_id} status: {status}")
+                logger.debug(order_info)
                 if status == "closed":
                     update_order_status(order_id, "executed")
-
                     add_event(order['event_manager_id'], "OrderExecutedEvent", 2, {"order_id": str(order_id), 'order_exchange_id': str(order['order_exchange_id']), "portfolio_id": str(order['portfolio_id']), 'symbol': order['symbol']})
                     logger.info(f"Order {order_id} executed.")
                 elif status == "canceled" or status == "expired" or status == "rejected":

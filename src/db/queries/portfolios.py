@@ -38,6 +38,15 @@ def get_portfolio_by_id(portfolio_id):
     return execute_query(query, {"portfolio_id": portfolio_id})
 
 
+def get_all_portfolios():
+    """
+    Retrieves portfolios ids.
+    :return: List of portfolios ids.
+    """
+    query = "SELECT portfolio_id FROM portfolios"
+    return execute_query(query)
+
+
 def update_portfolio_status(portfolio_id, has_executing_order):
     """
         Updates the status and timestamps of an order.
@@ -67,6 +76,22 @@ def update_managed_assets(portfolio_id, managed_assets):
         ALTER TABLE portfolios 
         UPDATE 
             managed_assets = {managed_assets}
+        WHERE portfolio_id = %(portfolio_id)s
+    """
+    execute_query(query, {"portfolio_id": portfolio_id})
+
+def update_portfolio_prices(portfolio_id, current_prices):
+    """
+    Updates the current_prices of a portfolio.
+
+    :param portfolio_id: UUID of the portfolio.
+    :param current_prices: Dictionary of updated current prices.
+    """
+    current_prices = to_map_literal(current_prices, update_request=True)
+    query = f"""
+        ALTER TABLE portfolios 
+        UPDATE 
+            current_prices = {current_prices}
         WHERE portfolio_id = %(portfolio_id)s
     """
     execute_query(query, {"portfolio_id": portfolio_id})

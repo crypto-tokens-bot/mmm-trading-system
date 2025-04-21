@@ -66,11 +66,11 @@ class OrderController:
             add_event(event_manager_id, "OrderPlacementEvent", 1, {"order_id": main_order_id})
 
             if stop_loss is not None:
-                stop_loss_order_id = self._create_stop_loss_order(main_order_id, portfolio_id, event_manager_id, signal_id, order_category, order_status, symbol, base_currency, quote_currency, initial_quantity, stop_loss, order_side)
+                stop_loss_order_id = self._create_stop_loss_order(main_order_id, portfolio_id, event_manager_id, signal_id, order_type, order_status, symbol, base_currency, quote_currency, initial_quantity, stop_loss, order_side)
                 created_order_ids.append(stop_loss_order_id)
 
             if take_profit is not None:
-                take_profit_order_id = self._create_take_profit_order(main_order_id, portfolio_id, event_manager_id, signal_id, order_category, order_status, symbol, base_currency, quote_currency, initial_quantity, take_profit, order_side)
+                take_profit_order_id = self._create_take_profit_order(main_order_id, portfolio_id, event_manager_id, signal_id, order_type, order_status, symbol, base_currency, quote_currency, initial_quantity, take_profit, order_side)
                 created_order_ids.append(take_profit_order_id)
 
             return created_order_ids
@@ -79,7 +79,7 @@ class OrderController:
             logger.exception("Failed to create order: %s", e)
             raise
 
-    def _create_stop_loss_order(self, parent_order_id, portfolio_id, event_manager_id, signal_id, order_category, order_status, symbol, base_currency, quote_currency, initial_quantity, stop_loss_price, order_side):
+    def _create_stop_loss_order(self, parent_order_id, portfolio_id, event_manager_id, signal_id, order_type, order_status, symbol, base_currency, quote_currency, initial_quantity, stop_loss_price, order_side):
         """
         Creates a stop-loss order linked to a parent order. The stop-loss order will have the opposite side of the main order.
 
@@ -88,11 +88,11 @@ class OrderController:
         :return: UUID of the created stop-loss order.
         """
         stop_loss_order_side = "sell" if order_side == "buy" else "buy"
-        stop_loss_order_id = add_order(portfolio_id, event_manager_id, signal_id, "stop_loss", order_category, stop_loss_order_side, order_status, symbol, base_currency, quote_currency, initial_quantity, stop_loss_price, parent_order_id=parent_order_id)
+        stop_loss_order_id = add_order(portfolio_id, event_manager_id, signal_id, order_type, "stop_loss", stop_loss_order_side, order_status, symbol, base_currency, quote_currency, initial_quantity, stop_loss_price, parent_order_id=parent_order_id)
         add_event(event_manager_id, "OrderPlacementEvent", 1, {"order_id": stop_loss_order_id})
         return stop_loss_order_id
 
-    def _create_take_profit_order(self, parent_order_id, portfolio_id, event_manager_id, signal_id, order_category, order_status, symbol, base_currency, quote_currency, initial_quantity, take_profit_price, order_side):
+    def _create_take_profit_order(self, parent_order_id, portfolio_id, event_manager_id, signal_id, order_type, order_status, symbol, base_currency, quote_currency, initial_quantity, take_profit_price, order_side):
         """
         Creates a take-profit order linked to a parent order. The take-profit order will have the opposite side of the main order.
 
@@ -101,6 +101,6 @@ class OrderController:
         :return: str: UUID of the created take-profit order.
         """
         take_profit_order_side = "sell" if order_side == "buy" else "buy"
-        take_profit_order_id = add_order(portfolio_id, event_manager_id, signal_id, "take_profit", order_category, take_profit_order_side, order_status, symbol, base_currency, quote_currency, initial_quantity, take_profit_price, parent_order_id=parent_order_id)
+        take_profit_order_id = add_order(portfolio_id, event_manager_id, signal_id, order_type, "take_profit", take_profit_order_side, order_status, symbol, base_currency, quote_currency, initial_quantity, take_profit_price, parent_order_id=parent_order_id)
         add_event(event_manager_id, "OrderPlacementEvent", 1, {"order_id": take_profit_order_id})
         return take_profit_order_id

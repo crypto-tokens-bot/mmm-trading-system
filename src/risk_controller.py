@@ -95,7 +95,6 @@ class RiskController:
 
         affordable_qty = quote_balance / target_price
         final_qty = min(allowed_to_buy, affordable_qty).quantize(Decimal("0.000001"))
-        print(quote_balance, max_value, target_price, max_qty, affordable_qty, final_qty)
         if final_qty <= Decimal("1e-3"):
             return None
 
@@ -104,6 +103,6 @@ class RiskController:
             trading_pair=trading_pair,
             quantity=final_qty,
             target_price=target_price,
-            stop_loss=None,
-            take_profit=None
+            stop_loss=self.stop_loss_coef * target_price if (self.stop_loss_coef is not None) else None,
+            take_profit=self.take_profit_coef * target_price if (self.take_profit_coef is not None) else None,
         )

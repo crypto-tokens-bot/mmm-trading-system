@@ -7,6 +7,7 @@ import os
 from typing import Dict, List, Tuple
 
 from src.connectors.exchange_connector import ExchangeConnector
+from src.db.queries.ohlcv_data import add_ohlcv_data
 
 
 class MarketDataProvider(threading.Thread):
@@ -124,6 +125,7 @@ class MarketDataProvider(threading.Thread):
 
             logger.success("Data saved to {}", file_path)
 
+            add_ohlcv_data(file_path, symbol, timeframe)
             self.notify_subscribers(symbol, timeframe, str(file_path))
 
         except Exception as e:

@@ -43,35 +43,31 @@ def create_fake_portfolio():
 
 
     market = MarketDataProvider(BybitConnector(testnet=True))
-    market.subscribe(strategy, strategy.trading_pair, '1m')
+    market.subscribe(strategy, strategy.trading_pair, '1h')
 
     risk_controller_id = add_risk_controller("aggressive", 0.5, 1.5,    {
         'BTC': 0.8,
         'ETH': 0.5
     })
 
-   # 1.96581041
     portfolio = Portfolio.create_portfolio(
         event_manager_id=event_manager.event_manager_id,
         risk_controller_id=risk_controller_id,
-        portfolio_name="My Test Portfolio",
-        managed_assets={"BTC": Decimal(0.001), "ETH": Decimal(2), "USDC": Decimal(1090.414368)},
-        currency="USDC",
-        initial_balance=Decimal(1090.414368),
+        portfolio_name="My Test Portfolio 4",
+        managed_assets={"BTC": Decimal(0.003), "ETH": Decimal(3), "USDT": Decimal(10000)},
+        currency="USDT",
+        initial_balance=Decimal(10000),
         exchange="bybit"
     )
+    monitoring = Monitoring()
 
     event_manager.subscribe_portfolio_to_strategy(portfolio, strategy.strategy_id)
 
     time.sleep(43)
+
+    monitoring.stop()
     market.stop()
     event_manager.stop()
-
-
-def monitor():
-    monitoring = Monitoring()
-    monitoring.ohlcv_plot(data='market_data_test/BTC_USDT_1h.csv', volume=True, type='line')
-
 
 if __name__ == "__main__":
     logger.info("Test in main")
