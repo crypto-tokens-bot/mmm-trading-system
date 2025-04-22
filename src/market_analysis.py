@@ -42,6 +42,18 @@ class MarketAnalysis:
             return Decimal(df["close"].iloc[-1])
 
     @staticmethod
+    def get_last_time(file_path: str) -> Decimal:
+        """
+        Return the latest close price (target price for a trade).
+
+        :param file_path: Path to the OHLCV file.
+        :return: Most recent close price.
+        """
+        with MarketAnalysis._lock:
+            df = MarketAnalysis._load_df(file_path)
+            return df["timestamp"].iloc[-1]
+
+    @staticmethod
     def get_rsi(file_path: str, period: int = 14) -> pd.Series:
         """
         :param file_path: OHLCV file.

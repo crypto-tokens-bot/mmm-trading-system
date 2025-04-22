@@ -33,16 +33,18 @@ class RandomStrategy(AbstractStrategy):
             parameters=parameters or {},
         )
 
-
+        self.last_time = None
         self.file_path: Optional[str] = None
         self.sma = None
 
         logger.info("[%s] Initialized for %s", self.strategy_name, self.trading_pair)
 
     def on_new_data(self, file_path: str):
+        logger.debug(f"Strategy {self.strategy_name} got new data on {file_path}")
         self.file_path = file_path
         self.sma = MarketAnalysis.get_sma(self.file_path)
         self.target_price = MarketAnalysis.get_target_price(self.file_path)
+        self.last_time = MarketAnalysis.get_last_time(self.file_path)
         self.check_entry_signal()
         self.check_exit_signal()
 
@@ -51,11 +53,11 @@ class RandomStrategy(AbstractStrategy):
         Generate a BUY signal with 50% probability.
         """
         if random.random() < 0.5:
-            self._generate_signal_event("buy")
+            self._generate_signal_event("buy", self.last_time)
 
     def check_exit_signal(self):
         """
         Generate a SELL signal with 50% probability.
         """
         if random.random() < 0.5:
-            self._generate_signal_event("sell")
+            self._generate_signal_event("sell", self.last_time)

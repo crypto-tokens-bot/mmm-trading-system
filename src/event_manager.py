@@ -9,6 +9,7 @@ from src.db.queries.event_managers import add_event_manager, update_event_manage
 from src.db.queries.strategy_subscriptions import add_strategy_subscription
 from src.order_processing.live_order_executor import LiveOrderExecutor
 from src.order_processing.order_controller import OrderController
+from src.order_processing.simulated_order_executor import SimulatedOrderExecutor
 from src.portfolio import Portfolio
 
 
@@ -19,7 +20,7 @@ class EventManager(threading.Thread):
     Runs in a separate thread.
     """
 
-    def __init__(self, event_manager_id):
+    def __init__(self, event_manager_id, mode):
         """
         Initializes the EventManager with a unique ID.
         The status remains inactive until the EventManager is started.
@@ -30,9 +31,9 @@ class EventManager(threading.Thread):
         self.event_manager_id = event_manager_id
         self._order_controller = OrderController()
         bybit_exchange = BybitConnector(testnet=True)
-        self._order_executor = LiveOrderExecutor(exchanges={'bybit': bybit_exchange})
         self.running = False
         self._strategy_subscriptions = {}
+        self._order_executor = LiveOrderExecutor(exchanges={'bybit': bybit_exchange}) if mode == "live" else SimulatedOrderExecutor(slippage_model=SimulatedOrderExecutor.SlippageModel(), fee_model=SimulatedOrderExecutor.FeeModel(), event_manager=self)
 
         logger.info(f"EventManager {self.event_manager_id} initialized.")
 
@@ -82,7 +83,7 @@ class EventManager(threading.Thread):
             logger.info(
                 f"EventManager {self.event_manager_id}: Handling event {event['event_id']} of type {event['event_type']}")
             if event['event_type'] == "OrderPlacementEvent":
-                self._order_executor.execute_order(event['payload']['order_id'])
+                self._order_executor.execute_order(event['payload']['order_id'], event['payload'])
             elif event['event_type'] == "OrderExecutedEvent":
                 portfolio = Portfolio.load_by_id(event['payload']['portfolio_id'])
                 portfolio.handle_order_executed_event(event)
@@ -91,7 +92,6 @@ class EventManager(threading.Thread):
                 if not strategy_id:
                     logger.warning("SignalEvent missing strategy_id in payload")
                     return
-
                 subscribed_portfolios = self._strategy_subscriptions[strategy_id]
                 for portfolio in subscribed_portfolios:
                     try:
@@ -101,8 +101,6 @@ class EventManager(threading.Thread):
                             logger.info(f"Signal ignored for portfolio {portfolio.portfolio_id}.")
                     except Exception as e:
                         logger.error(f"Failed to notify portfolio {portfolio.portfolio_id}: {e}")
-            elif event['event_type'] == "error":
-                pass
             else:
                 pass
 
@@ -165,7 +163,7 @@ class EventManager(threading.Thread):
         """
         try:
             event_manager_id = add_event_manager(mode, "inactive")
-            return EventManager(event_manager_id)
+            return EventManager(event_manager_id, mode)
         except Exception as e:
             logger.error(f"Error creating new EventManager: {e}")
             return None

@@ -1,6 +1,7 @@
 import uuid
 
-from src.db.db_connection import execute_query
+from src.config.logger_config import logger
+from src.db.db_connection import execute_query, to_map_literal
 
 
 def add_order(portfolio_id, event_manager_id, signal_id, order_type, order_category, order_side,
@@ -64,12 +65,13 @@ def update_order_exchange_id(order_id, order_exchange_id):
     execute_query(query, {"order_id": order_id, "order_exchange_id": str(order_exchange_id)})
 
 
-def update_order_status(order_id, status):
+def update_order_status(order_id, status, executed_time=None):
     """
         Updates the status and timestamps of an order.
 
         :param order_id: UUID of the order to update.
         :param status: New status of the order.
+        :param executed_time: Time when the order was executed.
     """
     query = """
         ALTER TABLE orders 
@@ -78,25 +80,26 @@ def update_order_status(order_id, status):
             updated_at = now()
         WHERE order_id = %(order_id)s
         """
-    if status == 'executed':
+
+    if executed_time is not None:
         query = """
             ALTER TABLE orders 
             UPDATE 
                 order_status = %(status)s,
                 updated_at = now(),
-                executed_at = now()
+                executed_at = %(executed_time)s
             WHERE order_id = %(order_id)s
             """
-
-    execute_query(query, {"order_id": order_id, "status": status})
+    execute_query(query, {"order_id": order_id, "status": status, "executed_time": executed_time})
 
 
 def update_order_info(order_id, executed_quantity, execution_summary, average_price, total_fee):
-    query = """
+    execution_summary = to_map_literal(execution_summary, update_request=True)
+    query = f"""
             ALTER TABLE orders 
             UPDATE 
                 executed_quantity = %(executed_quantity)s,
-                execution_summary = %(execution_summary)s,
+                execution_summary = {execution_summary},
                 average_price = %(average_price)s,
                 total_fee = %(total_fee)s,
                 updated_at = now()

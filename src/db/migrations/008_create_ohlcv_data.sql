@@ -1,4 +1,4 @@
-CREATE TABLE ohlcv_data (
+CREATE TABLE IF NOT EXISTS ohlcv_data (
     symbol String,
     timeframe String,
     time DateTime,
@@ -11,4 +11,4 @@ CREATE TABLE ohlcv_data (
 )
 ENGINE = ReplacingMergeTree(updated_at)
 ORDER BY (symbol, timeframe, time)
-TTL time + INTERVAL 30 DAY;
+TTL updated_at + INTERVAL 30 DAY;

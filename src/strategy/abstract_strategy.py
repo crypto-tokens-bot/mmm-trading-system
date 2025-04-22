@@ -28,7 +28,7 @@ class AbstractStrategy(ABC):
         logger.info(f"[{self.strategy_name}] Strategy created.")
 
 
-    def _generate_signal_event(self, direction: str):
+    def _generate_signal_event(self, direction: str, executed_time):
         """
         Create a new SignalEvent in the event manager.
         """
@@ -37,7 +37,8 @@ class AbstractStrategy(ABC):
                            "strategy_name": self.strategy_name,
                            "trading_pair": self.trading_pair,
                            "direction": direction,
-                           "target_price": str(self.target_price)})
+                           "target_price": str(self.target_price),
+                           "executed_time": executed_time})
         logger.info(f"[{self.strategy_name}] SignalEvent created: {direction}")
 
     @abstractmethod

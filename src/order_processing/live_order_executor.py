@@ -1,4 +1,6 @@
 import threading
+from datetime import datetime, timedelta
+
 from src.config.logger_config import logger
 from queue import Queue
 
@@ -46,7 +48,7 @@ class LiveOrderExecutor(OrderExecutor):
         self._initialized = True
         logger.info("LiveOrderExecutor initialized and monitoring thread started.")
 
-    def execute_order(self, order_id: str):
+    def execute_order(self, order_id: str, params={}):
         """
         Executes an order by placing it on the exchange and adding it to the monitoring queue.
 
@@ -95,16 +97,18 @@ class LiveOrderExecutor(OrderExecutor):
                     return
 
 
-                update_order_info(order_id, executed_quantity=order_info['filled'], execution_summary=order_info['trades'], average_price=order_info['average'], total_fee=order_info['fee']['cost'])
+                update_order_info(order_id, executed_quantity=order_info['filled'], execution_summary={}, average_price=order_info['average'], total_fee=order_info['fee']['cost'])
                 status = order_info['status']
                 logger.debug(f"Order {order_id} status: {status}")
                 logger.debug(order_info)
+                timestamp_ms = order_info['lastUpdateTimestamp']
+                executed_time = datetime.fromtimestamp(timestamp_ms / 1000) - timedelta(hours=3)
                 if status == "closed":
-                    update_order_status(order_id, "executed")
+                    update_order_status(order_id, "executed", executed_time)
                     add_event(order['event_manager_id'], "OrderExecutedEvent", 2, {"order_id": str(order_id), 'order_exchange_id': str(order['order_exchange_id']), "portfolio_id": str(order['portfolio_id']), 'symbol': order['symbol']})
                     logger.info(f"Order {order_id} executed.")
                 elif status == "canceled" or status == "expired" or status == "rejected":
-                    update_order_status(order_id, status)
+                    update_order_status(order_id, status, executed_time)
                     logger.warning(f"Order {order_id} {status}.")
                 else:
                     self._order_queue.put(order_id)

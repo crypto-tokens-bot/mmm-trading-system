@@ -3,7 +3,8 @@ from decimal import Decimal
 from typing import List, Optional
 
 from src.db.queries.events import add_event
-from src.db.queries.orders import add_order
+from src.db.queries.orders import add_order, update_order_status
+
 
 class OrderController:
     """
@@ -38,7 +39,8 @@ class OrderController:
         quote_currency: str,
         initial_quantity: Decimal,
         stop_loss: Optional[Decimal] = None,
-        take_profit: Optional[Decimal] = None
+        take_profit: Optional[Decimal] = None,
+        executed_time = None
     ) -> List[str]:
         """
         Creates a main order and optionally stop-loss / take-profit orders within a trading system.
@@ -63,7 +65,7 @@ class OrderController:
         try:
             main_order_id = add_order(portfolio_id, event_manager_id, signal_id, order_type, order_category, order_side, order_status, symbol, base_currency, quote_currency, initial_quantity, target_price)
             created_order_ids = [main_order_id]
-            add_event(event_manager_id, "OrderPlacementEvent", 1, {"order_id": main_order_id})
+            add_event(event_manager_id, "OrderPlacementEvent", 1, {"order_id": main_order_id, "executed_time": executed_time})
 
             if stop_loss is not None:
                 stop_loss_order_id = self._create_stop_loss_order(main_order_id, portfolio_id, event_manager_id, signal_id, order_type, order_status, symbol, base_currency, quote_currency, initial_quantity, stop_loss, order_side)

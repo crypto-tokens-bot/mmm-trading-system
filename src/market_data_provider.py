@@ -1,5 +1,6 @@
 import threading
 import time
+from datetime import timedelta
 from pathlib import Path
 from src.config.logger_config import logger
 import os
@@ -8,6 +9,7 @@ from typing import Dict, List, Tuple
 
 from src.connectors.exchange_connector import ExchangeConnector
 from src.db.queries.ohlcv_data import add_ohlcv_data
+from src.historical_data_feed import HistoricalDataFeed
 
 
 class MarketDataProvider(threading.Thread):
@@ -24,7 +26,7 @@ class MarketDataProvider(threading.Thread):
             cls._instance._initialized = False
         return cls._instance
 
-    def __init__(self, exchange_connector: ExchangeConnector, data_directory: str = "market_data_test"):
+    def __init__(self, exchange_connector: ExchangeConnector, data_directory: str = "market_data_test", mode='live'):
         """
         Initializes and automatically starts the market data provider.
 
@@ -40,11 +42,13 @@ class MarketDataProvider(threading.Thread):
         super().__init__()
         self.exchange_connector = exchange_connector
         self.data_directory = data_directory
+        self.historical_feeds: Dict[Tuple[str, str], HistoricalDataFeed] = {}
         self.subscribers: Dict[Tuple[str, str], List] = {}
         self.pairs = set()
         self._running = True
         super().start()
         self._initialized = True
+        self._mode = mode
 
         logger.debug("MarketDataProvider initialized and started with data directory: {}", data_directory)
 
@@ -57,7 +61,6 @@ class MarketDataProvider(threading.Thread):
                     if not self._running:
                         break
                     self.fetch_and_store_data(symbol, timeframe)
-                time.sleep(5)
             except Exception as e:
                 logger.error("Error in data fetching loop: {}", e)
 
@@ -83,7 +86,12 @@ class MarketDataProvider(threading.Thread):
             logger.debug("New subscription key created: {}", key)
 
         self.subscribers[key].append(strategy)
-        self.pairs.add(key)  # Track the pair for automatic fetching
+        self.pairs.add(key)
+        if self._mode == "backtest":
+            step = timedelta(minutes=1)
+            if timeframe == "1h":
+                step = timedelta(hours=1)
+            self.historical_feeds[key] = HistoricalDataFeed('bybit', symbol, timeframe, start_date='2024-01-01', step=step)
         logger.debug(f"Strategy subscribed to {symbol} {timeframe}")
 
     def unsubscribe(self, strategy, symbol: str, timeframe: str):
@@ -114,8 +122,14 @@ class MarketDataProvider(threading.Thread):
         """
         try:
             logger.debug("Fetching data for {} {} (limit: {})", symbol, timeframe, limit)
-            df = self.exchange_connector.fetch_ohlcv(symbol, timeframe, limit=limit)
 
+            if self._mode == "backtest":
+                df = self.historical_feeds[(symbol, timeframe)].fetch_ohlcv(limit)
+            else:
+                df = self.exchange_connector.fetch_ohlcv(symbol, timeframe, limit=limit, start_time=None)
+            if df is None:
+                self.stop()
+                return
             file_path = Path(f"{self.data_directory}/{symbol.replace('/', '_')}_{timeframe}.csv")
             file_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -125,7 +139,7 @@ class MarketDataProvider(threading.Thread):
 
             logger.success("Data saved to {}", file_path)
 
-            add_ohlcv_data(file_path, symbol, timeframe)
+            add_ohlcv_data(str(file_path), symbol, timeframe)
             self.notify_subscribers(symbol, timeframe, str(file_path))
 
         except Exception as e:

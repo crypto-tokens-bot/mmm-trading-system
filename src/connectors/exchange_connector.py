@@ -2,6 +2,7 @@ import time
 
 from abc import ABC
 from datetime import datetime
+from multiprocessing.util import debug
 from typing import Any
 
 import ccxt
@@ -55,13 +56,38 @@ class ExchangeConnector(ABC):
     def get_order_book(self, symbol, limit=None):
         return self._exchange.fetch_order_book(symbol, limit)
 
+    def fetch_ohlcv_with_retry(self, symbol, timeframe, since=None, limit=100, max_retries=5, delay=1, **kwargs):
+        attempt = 0
+        while attempt < max_retries:
+            try:
+                data = exchange.fetch_ohlcv(
+                    symbol=symbol,
+                    timeframe=timeframe,
+                    since=since,
+                    limit=limit,
+                    params=kwargs
+                )
+                if data:
+                    return data
+                else:
+                    logger.warning(f"No data returned. Retry {attempt + 1}/{max_retries}")
+            except Exception as e:
+                logger.warning(f"Error fetching OHLCV: {e}. Retry {attempt + 1}/{max_retries}")
+            attempt += 1
+            time.sleep(delay)
+
+        logger.error(f"Failed to fetch OHLCV after {max_retries} attempts.")
+        return []
+
     def fetch_ohlcv(
             self,
             symbol: str,
             timeframe: str,
-            start_time: datetime | int | None = None,
+            start_time,
             end_time: datetime | int | None = None,
             limit: int = 100,
+            max_retries=5,
+            delay=1,
             **kwargs
     ) -> Any:
         """
@@ -69,30 +95,41 @@ class ExchangeConnector(ABC):
 
         :param symbol: Trading pair symbol (e.g., "BTC/USDT").
         :param timeframe: Time interval (e.g., "1m", "1h", "1d").
-        :param start_time: Start timestamp (datetime or milliseconds) for fetching data.
+        :param start_time: Start timestamp for fetching data.
         :param end_time: End timestamp (datetime or milliseconds) to filter results.
         :param limit: Maximum number of candles to fetch (default: 100).
         :param kwargs: Additional parameters for the exchange API.
         :return: Pandas DataFrame containing OHLCV data.
         """
-        since = None
-        # if start_time is not None:
-        #     since = self._to_millis(start_time)
-        ohlcv = self._exchange.fetch_ohlcv(
-            symbol=symbol,
-            timeframe=timeframe,
-            since=since,
-            limit=limit,
-            params=kwargs,
-        )
-        # if end_time is not None:
-        #     end_ms = self._to_millis(end_time)
-        #     ohlcv = [c for c in ohlcv if c[0] <= end_ms]
 
-        ohlcv_df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
-        ohlcv_df['timestamp'] = pd.to_datetime(ohlcv_df['timestamp'], unit='ms')
+        attempt = 1
+        while attempt <= max_retries:
+            try:
+                ohlcv = self._exchange.fetch_ohlcv(
+                    symbol=symbol,
+                    timeframe=timeframe,
+                    since=start_time,
+                    limit=limit,
+                    params=kwargs,
+                )
+                # if end_time is not None:
+                #     end_ms = self._to_millis(end_time)
+                #     ohlcv = [c for c in ohlcv if c[0] <= end_ms]
+                debug(ohlcv)
+                if ohlcv:
+                    ohlcv_df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
+                    ohlcv_df['timestamp'] = pd.to_datetime(ohlcv_df['timestamp'], unit='ms')
+                    return ohlcv_df
+                else:
+                    logger.warning(f"No data returned. Retry {attempt}/{max_retries}")
+            except Exception as e:
+                logger.warning(f"Error fetching OHLCV: {e}. Retry {attempt}/{max_retries}")
+            attempt += 1
+            time.sleep(delay)
 
-        return ohlcv_df
+        logger.error(f"Failed to fetch OHLCV after {max_retries} attempts.")
+        return []
+
 
     def create_order(self, coin, order_type, side, amount, price=None, params=None):
         """

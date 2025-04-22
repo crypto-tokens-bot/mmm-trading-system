@@ -8,7 +8,7 @@ class OrderExecutor(abc.ABC):
     """
 
     @abc.abstractmethod
-    def execute_order(self, order_id: str):
+    def execute_order(self, order_id: str, params = {}):
         """
         Execute an order given its ID.
 
@@ -17,5 +17,6 @@ class OrderExecutor(abc.ABC):
 
         Raises:
             Exception: In case of execution failure.
+            :param params: parameters to be passed to the order executor.
         """
         pass

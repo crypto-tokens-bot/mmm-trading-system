@@ -4,6 +4,7 @@ from math import lgamma
 
 from src.config.logger_config import logger
 from src.connectors.exchange_connector import ExchangeConnector
+from src.db.queries.orders import get_order_by_id, update_order_status
 from src.db.queries.portfolios import get_portfolio_by_id, add_portfolio, update_portfolio_status, update_managed_assets
 from src.order_processing.order_controller import OrderController
 from src.risk_controller import RiskController, TradeDecision
@@ -88,6 +89,7 @@ class Portfolio:
             return
         self.has_executing_order = True
         update_portfolio_status(self.portfolio_id, self.has_executing_order)
+        executed_time = event['payload']['executed_time'] if 'executed_time' in event['payload'] else None
         OrderController().create_order(
             portfolio_id=self.portfolio_id,
             event_manager_id=self.event_manager_id,
@@ -103,6 +105,7 @@ class Portfolio:
             initial_quantity=decision.quantity,
             stop_loss=decision.stop_loss,
             take_profit=decision.take_profit,
+            executed_time=executed_time
         )
 
 
@@ -115,14 +118,25 @@ class Portfolio:
         order_id = event['payload']['order_id']
         order_exchange_id = event['payload']['order_exchange_id']
         symbol = event['payload']['symbol']
-        order_info = self.exchange.get_order_info(order_exchange_id, symbol)
-        logger.debug(order_info)
         base_asset, quote_asset = symbol.split('/')
-        filled_quantity = Decimal(order_info['filled'])
-        cost = Decimal(order_info['cost'])
-        fee_cost = Decimal(order_info['fee'].get('cost', 0))
-        fee_currency = order_info['fee'].get('currency')
-        if order_info['side'] == 'buy':
+        order_side = None
+        if order_exchange_id is None:
+            order_info = get_order_by_id(order_id)[0]
+            logger.debug(order_info)
+            order_side = order_info['order_side']
+            filled_quantity = Decimal(order_info['executed_quantity'])
+            cost = Decimal(order_info['average_price'])
+            fee_cost = Decimal(order_info['total_fee'])
+            fee_currency = quote_asset
+        else:
+            order_info = self.exchange.get_order_info(order_exchange_id, symbol)
+            logger.debug(order_info)
+            order_side = order_info['side']
+            filled_quantity = Decimal(order_info['filled'])
+            cost = Decimal(order_info['cost'])
+            fee_cost = Decimal(order_info['fee'].get('cost', 0))
+            fee_currency = order_info['fee'].get('currency')
+        if order_side == 'buy':
             self.managed_assets[base_asset] = self.managed_assets.get(base_asset, Decimal(0)) + filled_quantity
             self.managed_assets[quote_asset] = self.managed_assets.get(quote_asset, Decimal(0)) - cost
         else:
