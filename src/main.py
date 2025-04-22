@@ -36,7 +36,6 @@ def create_fake_orders():
 
 
 def create_fake_portfolio():
-
     event_manager = EventManager.create_new(mode="live")
     event_manager.start()
 

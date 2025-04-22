@@ -25,8 +25,14 @@ def get_event_manager_by_id(event_manager_id):
     :return: Event manager details as a tuple.
     """
     query = "SELECT * FROM event_managers WHERE event_manager_id = %(event_manager_id)s"
-    return execute_query(query, {"event_manager_id": event_manager_id})[0]
+    result = execute_query(query, {"event_manager_id": event_manager_id})
+    if result is None or len(result) == 0:
+        return None
+    return result[0]
 
+def get_all_event_managers():
+    query = "SELECT * FROM event_managers"
+    return execute_query(query)
 
 def update_event_manager_status(event_manager_id, status):
     """
@@ -41,3 +47,16 @@ def update_event_manager_status(event_manager_id, status):
     WHERE event_manager_id = %(event_manager_id)s
     """
     execute_query(query, {"event_manager_id": event_manager_id, "status": status})
+
+
+def delete_event_manager(event_manager_id):
+    """
+    Deletes an event manager from the event_managers table.
+
+    :param event_manager_id: UUID of the event manager to delete.
+    """
+    query = """
+    DELETE FROM event_managers
+    WHERE event_manager_id = %(event_manager_id)s
+    """
+    execute_query(query, {'event_manager_id': event_manager_id})

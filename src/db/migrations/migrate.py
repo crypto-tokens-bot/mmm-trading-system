@@ -1,4 +1,6 @@
 import os
+from pathlib import Path
+
 from src.config.logger_config import logger
 from src.db.db_connection import execute_query
 
@@ -7,7 +9,8 @@ def apply_migrations():
     """
     Reads and executes all SQL migration files from the current directory.
     """
-    sql_files = sorted([file for file in os.listdir() if file.endswith(".sql")])
+    script_path = Path(__file__).parent
+    sql_files = sorted(script_path.glob("*.sql"))
 
     if not sql_files:
         logger.info("No migrations found. Skipping.")

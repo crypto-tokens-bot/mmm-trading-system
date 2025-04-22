@@ -34,3 +34,4 @@ def get_risk_controller_by_id(risk_controller_id):
     """
     query = "SELECT * FROM risk_controllers WHERE risk_controller_id = %(risk_controller_id)s"
     return execute_query(query, {"risk_controller_id": risk_controller_id})
+

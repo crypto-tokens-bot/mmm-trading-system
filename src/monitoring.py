@@ -8,7 +8,7 @@ from src.config.logger_config import logger
 
 from src.connectors.exchange_connector import ExchangeConnector
 from src.db.queries.portfolios import get_portfolio_by_id, update_portfolio_status, update_portfolio_prices, \
-    get_all_portfolios
+    get_all_portfolios_ids
 
 
 class Monitoring:
@@ -24,7 +24,7 @@ class Monitoring:
     def _price_update_loop(self):
         while self._is_running:
             try:
-                portfolios_ids = get_all_portfolios()
+                portfolios_ids = get_all_portfolios_ids()
                 for portfolio in portfolios_ids:
                     portfolio_id = str(portfolio['portfolio_id'])
                     portfolio_info = get_portfolio_by_id(portfolio_id)[0]

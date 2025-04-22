@@ -38,13 +38,35 @@ def get_portfolio_by_id(portfolio_id):
     return execute_query(query, {"portfolio_id": portfolio_id})
 
 
-def get_all_portfolios():
+def get_all_portfolios_ids():
     """
     Retrieves portfolios ids.
     :return: List of portfolios ids.
     """
     query = "SELECT portfolio_id FROM portfolios"
     return execute_query(query)
+
+
+def get_all_portfolios():
+    """
+    Retrieves portfolios.
+    :return: List of portfolios.
+    """
+    query = "SELECT * FROM portfolios"
+    return execute_query(query)
+
+
+def delete_portfolio(portfolio_id):
+    """
+    Deletes a portfolio from the portfolios table.
+
+    :param portfolio_id: UUID of the portfolio to delete.
+    """
+    query = """
+    DELETE FROM portfolios
+    WHERE portfolio_id = %(portfolio_id)s
+    """
+    execute_query(query, {'portfolio_id': portfolio_id})
 
 
 def update_portfolio_status(portfolio_id, has_executing_order):

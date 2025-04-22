@@ -2,7 +2,7 @@ import uuid
 
 from src.db.db_connection import execute_query
 
-def add_strategy(event_manager_id, trading_pair, strategy_name, parameters):
+def add_strategy(event_manager_id, trading_pair, strategy_name, strategy_type, parameters):
     """
     Inserts a new strategy into the strategies table.
 
@@ -14,8 +14,8 @@ def add_strategy(event_manager_id, trading_pair, strategy_name, parameters):
 
     strategy_id = uuid.uuid4()
     query = """
-    INSERT INTO strategies (strategy_id, event_manager_id, trading_pair, strategy_name, parameters, started_at)
-    VALUES (%(strategy_id)s, %(event_manager_id)s, %(trading_pair)s, %(strategy_name)s, %(parameters)s, now())
+    INSERT INTO strategies (strategy_id, event_manager_id, trading_pair, strategy_name, strategy_type, parameters)
+    VALUES (%(strategy_id)s, %(event_manager_id)s, %(trading_pair)s, %(strategy_name)s, %(strategy_type)s, %(parameters)s)
     """
     execute_query(query, locals())
     return str(strategy_id)
@@ -32,16 +32,19 @@ def get_strategy_by_id(strategy_id):
     return execute_query(query, {"strategy_id": strategy_id})
 
 
-def update_strategy_status(strategy_id, status):
-    """
-    Updates the status of the strategy in the database.
+def get_all_strategies():
+    query = "SELECT * FROM strategies"
+    return execute_query(query)
 
-    :param strategy_id: UUID of the strategy.
-    :param status: New status ("active" or "inactive").
+
+def delete_strategy(strategy_id):
+    """
+    Deletes a strategy from the strategies table.
+
+    :param strategy_id: UUID of the strategy to delete.
     """
     query = """
-    ALTER TABLE strategies 
-    UPDATE status = %(status)s
+    DELETE FROM strategies
     WHERE strategy_id = %(strategy_id)s
     """
-    execute_query(query, {"strategy_id": strategy_id, "status": status})
+    execute_query(query, {'strategy_id': strategy_id})
