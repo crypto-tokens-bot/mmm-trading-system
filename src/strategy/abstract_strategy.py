@@ -1,3 +1,4 @@
+import json
 import threading
 import time
 from abc import ABC, abstractmethod
@@ -87,7 +88,7 @@ class AbstractStrategy(ABC):
                 event_manager_id=str(strategy['event_manager_id']),
                 trading_pair=strategy['trading_pair'],
                 strategy_name=strategy['strategy_name'],
-                parameters=strategy['parameters'],
+                parameters=json.loads(strategy['parameters']),
             )
 
         except Exception as exc:

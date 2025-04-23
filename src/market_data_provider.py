@@ -46,15 +46,16 @@ class MarketDataProvider(threading.Thread):
         self.subscribers: Dict[Tuple[str, str], List] = {}
         self.pairs = set()
         self._running = True
-        super().start()
         self._initialized = True
         self._mode = mode
+        super().start()
+
 
         logger.debug("MarketDataProvider initialized and started with data directory: {}", data_directory)
 
     def run(self):
         """Main data fetching loop."""
-        logger.debug("Starting market data {self._mode} fetching loop")
+        logger.debug(f"Starting market data {self._mode} fetching loop")
         while self._running:
             try:
                 for symbol, timeframe in self.pairs.copy():
@@ -93,7 +94,9 @@ class MarketDataProvider(threading.Thread):
             step = timedelta(minutes=1)
             if timeframe == "1h":
                 step = timedelta(hours=1)
-            self.historical_feeds[key] = HistoricalDataFeed('bybit', symbol, timeframe, start_date='2024-01-01', step=step)
+            elif timeframe == "1d":
+                step = timedelta(days=1)
+            self.historical_feeds[key] = HistoricalDataFeed('bybit', symbol, timeframe, start_date='2020-01-01', step=step)
         logger.debug(f"Strategy subscribed to {symbol} {timeframe}")
 
     def unsubscribe(self, strategy, symbol: str, timeframe: str):

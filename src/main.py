@@ -29,7 +29,7 @@ class App:
     """Orchestrates the lifetime of trading subsystems."""
 
     def __init__(self) -> None:
-        self._event_managers = None
+        self._event_managers = []
         self._monitoring = None
         self._live_market = None
         self._backtest_market = None
@@ -55,16 +55,19 @@ class App:
         """Run migrations, load managers/strategies/portfolios and wire them."""
         logger.info("Running DB migrations…")
         apply_migrations()
-        self._event_managers = get_all_event_managers()
-        for em in self._event_managers:
-            event_manager = EventManager.from_id(em["event_manager_id"])
-            self._track(event_manager)
-            event_manager.start()
-            self._track(event_manager._order_executor)
 
-        self._live_market = self._track(MarketDataProvider(BybitConnector(testnet=False)))
+        for em in get_all_event_managers():
+            event_manager = EventManager.from_id(em["event_manager_id"])
+            self._track(event_manager._order_executor)
+            self._track(event_manager)
+            self._event_managers.append(event_manager)
+
+        self._live_market = None
+        # self._live_market = MarketDataProvider(BybitConnector(testnet=False))
+        # self._track(self._live_market)
         self._backtest_market = None
-        # self._backtest_market = self._track(MarketDataProvider(BybitConnector(testnet=False), mode="backtest"))
+        self._backtest_market = MarketDataProvider(BybitConnector(testnet=False), mode="backtest")
+        self._track(self._backtest_market)
         self._wire_existing_objects()
         self._monitoring = self._track(Monitoring())
 
@@ -72,11 +75,11 @@ class App:
     def _wire_existing_objects(self) -> None:
         """Fetch strategies/portfolios from DB and subscribe them correctly."""
         for em in self._event_managers:
-            market = self._backtest_market if em['mode'] == "backtest" else self._live_market
+            market = self._backtest_market if em._mode == "backtest" else self._live_market
             if market is None:
                 continue
-            strategy_rows = get_strategies_by_event_manager_id(em['event_manager_id'])
-            portfolio_rows = get_portfolios_by_event_manager_id(em['event_manager_id'])
+            strategy_rows = get_strategies_by_event_manager_id(em.event_manager_id)
+            portfolio_rows = get_portfolios_by_event_manager_id(em.event_manager_id)
 
             strategies: Dict[str, AbstractStrategy] = {}
             portfolios: Dict[str, Portfolio] = {}
@@ -88,6 +91,7 @@ class App:
                     timeframe = '1h'
                     if 'timeframe' in strategy.parameters:
                         timeframe = strategy.parameters['timeframe']
+
                     market.subscribe(strategy, strategy.trading_pair, timeframe)
 
             all_links = []
@@ -98,10 +102,12 @@ class App:
                 for link in get_subscriptions_by_portfolio(p["portfolio_id"]):
                     all_links.append(link)
             for link in all_links:
-                portfolio = portfolios[link["portfolio_id"]]
-                strategy = strategies[link["strategy_id"]]
+                portfolio = portfolios[str(link["portfolio_id"])]
+                strategy = strategies[str(link["strategy_id"])]
                 if portfolio and strategy:
                     em.subscribe_portfolio_to_strategy(portfolio, strategy.strategy_id)
+
+            em.start()
 
     def run_forever(self):
         logger.success("Application started.")

@@ -50,7 +50,7 @@ class HistoricalDataFeed:
             df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
 
             if not df.empty:
-                self.current_time = df['timestamp'].iloc[-1] + self.step
+                self.current_time = df['timestamp'].iloc[0] + self.step
             else:
                 logger.warning("Received empty OHLCV data.")
                 return None

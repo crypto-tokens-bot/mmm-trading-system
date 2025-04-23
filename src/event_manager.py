@@ -30,6 +30,7 @@ class EventManager(threading.Thread):
         super().__init__()
         self.event_manager_id = event_manager_id
         self._order_controller = OrderController()
+        self._mode = mode
         bybit_exchange = BybitConnector(testnet=True)
         self.running = False
         self._strategy_subscriptions = {}
