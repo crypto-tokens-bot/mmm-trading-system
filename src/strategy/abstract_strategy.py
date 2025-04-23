@@ -7,7 +7,7 @@ from typing import Dict, Any, Optional
 from src.config.logger_config import logger
 
 from src.db.queries.events import add_event
-from src.db.queries.strategies import add_strategy
+from src.db.queries.strategies import add_strategy, get_strategy_by_id
 
 
 
@@ -60,18 +60,36 @@ class AbstractStrategy(ABC):
         pass
 
     @staticmethod
-    def create_strategy(strategy_class, event_manager_id: str, trading_pair: str,
-                        strategy_name: str, parameters: Dict[str, Any]):
+    def from_id(strategy_id: str) -> "AbstractStrategy | None":
         """
-        Create a strategy record in the database and return an instance of the strategy.
+        Load a strategy from the database and return an instantiated subclass.
 
-        :param strategy_class: Class of the strategy to instantiate.
-        :param event_manager_id: ID of the event manager to use.
-        :param trading_pair: Symbol to trade.
-        :param strategy_name: Name of the strategy.
-        :param parameters: Strategy-specific parameters.
-        :return: Strategy instance.
+        :param strategy_id: Primary-key of the strategy row.
+        :return: Concrete strategy object or ``None`` on failure / not found.
         """
-        strategy_id = add_strategy(event_manager_id, trading_pair, strategy_name, parameters)
-        logger.info(f"Strategy {strategy_name} registered in DB.")
-        return strategy_class(strategy_id, event_manager_id, trading_pair, strategy_name, parameters)
+        try:
+            strategy = get_strategy_by_id(strategy_id)
+            if strategy is None:
+                logger.error(f"Strategy with id {strategy_id} not found")
+                return None
+
+            strategy_cls = None
+
+            if strategy['strategy_type'] == "Random":
+                from src.strategy.random_strategy import RandomStrategy
+                strategy_cls = RandomStrategy
+            if strategy_cls is None:
+                logger.error(f"Unknown strategy_type {strategy['strategy_type']} for strategy id {strategy_id}" )
+                return None
+
+            return strategy_cls(
+                strategy_id=str(strategy['strategy_id']),
+                event_manager_id=str(strategy['event_manager_id']),
+                trading_pair=strategy['trading_pair'],
+                strategy_name=strategy['strategy_name'],
+                parameters=strategy['parameters'],
+            )
+
+        except Exception as exc:
+            logger.exception(f"Failed to build strategy instance for id {strategy_id}: {exc}")
+            return None

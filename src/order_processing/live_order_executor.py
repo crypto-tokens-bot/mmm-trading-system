@@ -44,7 +44,7 @@ class LiveOrderExecutor(OrderExecutor):
 
         self._monitor_thread = threading.Thread(target=self._monitor_executing_orders, daemon=True)
         self._monitor_thread.start()
-
+        self._is_running = False
         self._initialized = True
         logger.info("LiveOrderExecutor initialized and monitoring thread started.")
 
@@ -76,7 +76,8 @@ class LiveOrderExecutor(OrderExecutor):
         """
         Background thread method that continuously monitors executing orders.
         """
-        while True:
+        self._is_running = True
+        while self._is_running:
             try:
                 order_id = self._order_queue.get()
                 order = get_order_by_id(order_id)[0]
@@ -113,5 +114,15 @@ class LiveOrderExecutor(OrderExecutor):
                 else:
                     self._order_queue.put(order_id)
             except Exception as e:
-                logger.exception(f"Error while monitoring order {order_id}: {e}")
-                self._order_queue.put(order_id)  # Retry later
+                logger.exception(f"Error while monitoring order: {e}")
+
+
+    def stop(self):
+        try:
+            logger.info(f"LiveOrderExecutor is shutting down.")
+            self._is_running = False
+            self._order_queue.shutdown()
+            self._monitor_thread.join()
+            logger.info(f"LiveOrderExecutor stopped.")
+        except Exception as e:
+            logger.error(f"Error stopping LiveOrderExecutor: {e}")

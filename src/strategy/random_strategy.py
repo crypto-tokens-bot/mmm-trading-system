@@ -37,7 +37,7 @@ class RandomStrategy(AbstractStrategy):
         self.file_path: Optional[str] = None
         self.sma = None
 
-        logger.info("[%s] Initialized for %s", self.strategy_name, self.trading_pair)
+        logger.info(f"Strategy {self.strategy_name} initialized for {self.trading_pair}")
 
     def on_new_data(self, file_path: str):
         logger.debug(f"Strategy {self.strategy_name} got new data on {file_path}")

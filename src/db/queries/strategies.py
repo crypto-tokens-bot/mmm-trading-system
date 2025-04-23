@@ -29,7 +29,25 @@ def get_strategy_by_id(strategy_id):
     :return: Strategy details as a tuple.
     """
     query = "SELECT * FROM strategies WHERE strategy_id = %(strategy_id)s"
-    return execute_query(query, {"strategy_id": strategy_id})
+    result = execute_query(query, locals())
+    if result is None:
+        return None
+    return result[0]
+
+
+def get_strategies_by_event_manager_id(event_manager_id):
+    """
+    Fetch all strategies that belong to the specified event manager.
+
+    :param event_manager_id: UUID of the event manager.
+    :return: List of strategy rows (each row is typically a dict) or an empty list.
+    """
+    query = """
+        SELECT *
+        FROM strategies
+        WHERE event_manager_id = %(event_manager_id)s
+    """
+    return execute_query(query, {"event_manager_id": event_manager_id}) or []
 
 
 def get_all_strategies():

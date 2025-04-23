@@ -35,7 +35,24 @@ def get_portfolio_by_id(portfolio_id):
     :return: Portfolio details as a tuple.
     """
     query = "SELECT * FROM portfolios WHERE portfolio_id = %(portfolio_id)s"
-    return execute_query(query, {"portfolio_id": portfolio_id})
+    result = execute_query(query,{"portfolio_id": portfolio_id})
+    if result is None:
+        return None
+    return result[0]
+
+def get_portfolios_by_event_manager_id(event_manager_id):
+    """
+    Fetch all portfolios that belong to the specified event manager.
+
+    :param event_manager_id: UUID of the event manager.
+    :return: List of portfolio rows (each row is usually a dict) or an empty list.
+    """
+    query = """
+        SELECT *
+        FROM portfolios
+        WHERE event_manager_id = %(event_manager_id)s
+    """
+    return execute_query(query, {"event_manager_id": event_manager_id}) or []
 
 
 def get_all_portfolios_ids():

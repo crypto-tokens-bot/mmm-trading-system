@@ -21,7 +21,6 @@ def setup_logger():
     logger.configure(
         handlers=[
             {"sink": loki_handler, "serialize": True},
-            {"sink": "app.log", "rotation": "10 MB"},
             {"sink": sys.stdout, "level": "DEBUG"},
         ]
     )

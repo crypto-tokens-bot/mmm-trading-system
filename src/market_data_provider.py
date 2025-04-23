@@ -54,7 +54,7 @@ class MarketDataProvider(threading.Thread):
 
     def run(self):
         """Main data fetching loop."""
-        logger.debug("Starting market data fetching loop")
+        logger.debug("Starting market data {self._mode} fetching loop")
         while self._running:
             try:
                 for symbol, timeframe in self.pairs.copy():
@@ -63,6 +63,8 @@ class MarketDataProvider(threading.Thread):
                     self.fetch_and_store_data(symbol, timeframe)
             except Exception as e:
                 logger.error("Error in data fetching loop: {}", e)
+        logger.debug(f"Market data {self._mode} stopped.")
+
 
     def stop(self):
         """Stops the market data provider."""

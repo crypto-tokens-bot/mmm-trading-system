@@ -26,13 +26,13 @@ class Portfolio:
         :param portfolio_id: Unique identifier of the portfolio.
         :raises ValueError: If the portfolio is not found in the database.
         """
-        data = get_portfolio_by_id(portfolio_id)[0]
+        data = get_portfolio_by_id(portfolio_id)
         if not data:
             raise ValueError(f"Portfolio with id {portfolio_id} not found")
 
-        self.portfolio_id = data['portfolio_id']
-        self.risk_controller_id = data['risk_controller_id']
-        self.event_manager_id = data['event_manager_id']
+        self.portfolio_id = str(data['portfolio_id'])
+        self.risk_controller_id = str(data['risk_controller_id'])
+        self.event_manager_id = str(data['event_manager_id'])
         self.portfolio_name = data['portfolio_name']
         self.managed_assets = data['managed_assets']
         self.currency = data['currency']
@@ -47,32 +47,30 @@ class Portfolio:
         logger.info(f"Initialized portfolio: {self.portfolio_id} - {self.portfolio_name}")
 
     @classmethod
-    def create_portfolio(cls, event_manager_id, risk_controller_id, portfolio_name, managed_assets, currency,
-                         initial_balance, exchange):
+    def from_id(cls, portfolio_id: str) -> "Portfolio | None":
         """
-        Creates a new portfolio in the database.
+        Load a portfolio from the database and return the object.
 
-        :param event_manager_id: ID of the associated event manager.
-        :param risk_controller_id: ID of the associated risk controller.
-        :param portfolio_name: Name of the portfolio.
-        :param managed_assets: Assets managed by the portfolio (e.g., dict of asset names).
-        :param currency: The base currency in which the portfolio is denominated (e.g., 'USD').
-        :param initial_balance: Initial balance of the portfolio in base currency.
-        :param exchange: Name of the exchange where the portfolio is active (e.g., 'Binance').
-        :return: Instance of Portfolio.
+        :param portfolio_id: Primary-key of the portfolio row.
+        :return: Portfolio object or ``None`` when the row is missing or an error occurs.
         """
-        portfolio_id = add_portfolio(
-            event_manager_id=event_manager_id,
-            risk_controller_id=risk_controller_id,
-            portfolio_name=portfolio_name,
-            currency=currency,
-            initial_balance=initial_balance,
-            managed_assets=managed_assets,
-            exchange=exchange
-        )
-        cls._cache[portfolio_id] = cls(portfolio_id)
-        logger.info(f"Created new portfolio with ID: {portfolio_id}")
-        return cls._cache[portfolio_id]
+        try:
+            if portfolio_id in cls._cache:
+                return cls._cache[portfolio_id]
+
+            row = get_portfolio_by_id(portfolio_id)
+            if row is None:
+                logger.error(f"Portfolio with id {portfolio_id} not found")
+                return None
+
+            portfolio = cls(portfolio_id=row["portfolio_id"])
+            cls._cache[portfolio_id] = portfolio
+            return portfolio
+
+        except Exception as exc:
+            logger.exception(f"Failed to build portfolio for id {portfolio_id}: {exc}")
+            return None
+
 
     def handle_signal_event(self, event):
         """

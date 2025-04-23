@@ -30,6 +30,7 @@ def get_event_manager_by_id(event_manager_id):
         return None
     return result[0]
 
+
 def get_all_event_managers():
     query = "SELECT * FROM event_managers"
     return execute_query(query)

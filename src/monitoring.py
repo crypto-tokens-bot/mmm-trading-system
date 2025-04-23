@@ -27,7 +27,7 @@ class Monitoring:
                 portfolios_ids = get_all_portfolios_ids()
                 for portfolio in portfolios_ids:
                     portfolio_id = str(portfolio['portfolio_id'])
-                    portfolio_info = get_portfolio_by_id(portfolio_id)[0]
+                    portfolio_info = get_portfolio_by_id(portfolio_id)
                     current_prices = {}
                     base_currency = portfolio_info['currency']
 
@@ -43,7 +43,7 @@ class Monitoring:
                 logger.success("Prices updated successfully")
             except Exception as e:
                 logger.error(f"Error updating prices: {e}")
-            time.sleep(300)
+            time.sleep(10)
         logger.info("Price update loop stopped")
 
     def stop(self):

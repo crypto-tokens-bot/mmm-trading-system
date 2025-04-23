@@ -5,7 +5,7 @@ from src.config.logger_config import logger
 
 from src.connectors.bybit_connector import BybitConnector
 from src.db.queries.events import get_next_event, mark_event_as_processed
-from src.db.queries.event_managers import add_event_manager, update_event_manager_status
+from src.db.queries.event_managers import add_event_manager, update_event_manager_status, get_event_manager_by_id
 from src.db.queries.strategy_subscriptions import add_strategy_subscription
 from src.order_processing.live_order_executor import LiveOrderExecutor
 from src.order_processing.order_controller import OrderController
@@ -92,7 +92,7 @@ class EventManager(threading.Thread):
                 if not strategy_id:
                     logger.warning("SignalEvent missing strategy_id in payload")
                     return
-                subscribed_portfolios = self._strategy_subscriptions[strategy_id]
+                subscribed_portfolios = self._strategy_subscriptions.get(strategy_id, [])
                 for portfolio in subscribed_portfolios:
                     try:
                         if not portfolio.has_executing_order:
@@ -154,16 +154,16 @@ class EventManager(threading.Thread):
 
 
     @staticmethod
-    def create_new(mode):
-        """
-        Creates a new EventManager instance in the database and returns the corresponding object.
-
-        :param mode: The mode of operation for the EventManager (e.g., "live" or "simulated").
-        :return: Instance of EventManager.
-        """
+    def from_id(event_manager_id: str):
         try:
-            event_manager_id = add_event_manager(mode, "inactive")
-            return EventManager(event_manager_id, mode)
-        except Exception as e:
-            logger.error(f"Error creating new EventManager: {e}")
+            # Retrieve the persisted row; expected to expose `id` and `mode` fields
+            event_manager = get_event_manager_by_id(event_manager_id)
+
+            if event_manager is None:
+                logger.error(f"EventManager with id {event_manager_id} not found")
+                return None
+
+            return EventManager(event_manager_id=event_manager['event_manager_id'], mode=event_manager['mode'])
+        except Exception as exc:
+            logger.exception(f"Failed to initialise EventManager for id {event_manager_id}: {exc}")
             return None

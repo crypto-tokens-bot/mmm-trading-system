@@ -1,107 +1,129 @@
+import signal
+import sys
 import time
-import uuid
-from decimal import Decimal
+from contextlib import suppress
+from threading import active_count
+from typing import Dict
 
+from src.config.logger_config import logger
 from src.connectors.bybit_connector import BybitConnector
-from src.db.queries.risk_controllers import add_risk_controller
+from src.db.migrations.migrate import apply_migrations
+from src.db.queries.event_managers import get_all_event_managers
+from src.db.queries.portfolios import get_portfolios_by_event_manager_id
+from src.db.queries.strategies import get_strategies_by_event_manager_id
+from src.db.queries.strategy_subscriptions import get_subscriptions_by_portfolio
 from src.event_manager import EventManager
-from src.historical_data_feed import HistoricalDataFeed
 from src.market_data_provider import MarketDataProvider
 from src.monitoring import Monitoring
 from src.portfolio import Portfolio
 from src.strategy.abstract_strategy import AbstractStrategy
-from src.strategy.random_strategy import RandomStrategy
-from src.config.logger_config import logger
 
 
-def create_fake_orders():
-    event_manager = EventManager.create_new(mode="live")
-
-    created_ids = event_manager._order_controller.create_order(
-        portfolio_id=str(uuid.uuid4()),
-        event_manager_id=event_manager.event_manager_id,
-        signal_id=str(uuid.uuid4()),
-        order_type="market",
-        order_category="spot",
-        order_side="buy",
-        target_price=Decimal("30000"),
-        order_status="pending",
-        symbol="BTC/USDT",
-        base_currency="BTC",
-        quote_currency="USDT",
-        initial_quantity=Decimal("0.0001")
-    )
-
-    event_manager.start()
+def system_kill(*_, **__):
+    """Trigger a controlled shutdown when SIGINT/SIGTERM is caught."""
+    logger.warning("Shutdown signal received")
+    raise KeyboardInterrupt  # handled in main()
 
 
-def create_fake_portfolio():
-    event_manager = EventManager.create_new(mode="live")
-    event_manager.start()
+class App:
+    """Orchestrates the lifetime of trading subsystems."""
 
-    strategy = AbstractStrategy.create_strategy(RandomStrategy, event_manager.event_manager_id, "BTC/USDT", "Random", {})
+    def __init__(self) -> None:
+        self._event_managers = None
+        self._monitoring = None
+        self._live_market = None
+        self._backtest_market = None
+        self._objects = []
+
+    def _track(self, obj):
+        """Remember *obj* so we can stop it later if it exposes .stop()."""
+        if hasattr(obj, "stop"):
+            self._objects.append(obj)
+        return obj
+
+    def _stop_everything(self):
+        """Iterate in reverse creation order and call .stop() if defined."""
+        logger.info(f"Stopping {len(self._objects)} components...")
+        for o in reversed(self._objects):
+            with suppress(Exception):
+                o.stop()
+        while active_count() > 2:
+            time.sleep(1)
+        logger.info("Shutdown complete!")
+
+    def bootstrap(self) -> None:
+        """Run migrations, load managers/strategies/portfolios and wire them."""
+        logger.info("Running DB migrations…")
+        apply_migrations()
+        self._event_managers = get_all_event_managers()
+        for em in self._event_managers:
+            event_manager = EventManager.from_id(em["event_manager_id"])
+            self._track(event_manager)
+            event_manager.start()
+            self._track(event_manager._order_executor)
+
+        self._live_market = self._track(MarketDataProvider(BybitConnector(testnet=False)))
+        self._backtest_market = None
+        # self._backtest_market = self._track(MarketDataProvider(BybitConnector(testnet=False), mode="backtest"))
+        self._wire_existing_objects()
+        self._monitoring = self._track(Monitoring())
 
 
-    market = MarketDataProvider(BybitConnector(testnet=False))
-    market.subscribe(strategy, strategy.trading_pair, '1h')
+    def _wire_existing_objects(self) -> None:
+        """Fetch strategies/portfolios from DB and subscribe them correctly."""
+        for em in self._event_managers:
+            market = self._backtest_market if em['mode'] == "backtest" else self._live_market
+            if market is None:
+                continue
+            strategy_rows = get_strategies_by_event_manager_id(em['event_manager_id'])
+            portfolio_rows = get_portfolios_by_event_manager_id(em['event_manager_id'])
 
-    risk_controller_id = add_risk_controller("aggressive", 0.5, 1.5,    {
-        'BTC': 0.8,
-        'ETH': 0.5
-    })
+            strategies: Dict[str, AbstractStrategy] = {}
+            portfolios: Dict[str, Portfolio] = {}
 
-    portfolio = Portfolio.create_portfolio(
-        event_manager_id=event_manager.event_manager_id,
-        risk_controller_id=risk_controller_id,
-        portfolio_name="My Test Portfolio 4",
-        managed_assets={"BTC": Decimal(0.001), "ETH": Decimal(3), "USDT": Decimal(10000)},
-        currency="USDT",
-        initial_balance=Decimal(10000),
-        exchange="bybit"
-    )
-    monitoring = Monitoring()
+            for s in strategy_rows:
+                strategy = AbstractStrategy.from_id(s["strategy_id"])
+                if strategy:
+                    strategies[strategy.strategy_id] = strategy
+                    timeframe = '1h'
+                    if 'timeframe' in strategy.parameters:
+                        timeframe = strategy.parameters['timeframe']
+                    market.subscribe(strategy, strategy.trading_pair, timeframe)
 
-    event_manager.subscribe_portfolio_to_strategy(portfolio, strategy.strategy_id)
+            all_links = []
+            for p in portfolio_rows:
+                portfolio = Portfolio.from_id(p["portfolio_id"])
+                if portfolio:
+                    portfolios[portfolio.portfolio_id] = portfolio
+                for link in get_subscriptions_by_portfolio(p["portfolio_id"]):
+                    all_links.append(link)
+            for link in all_links:
+                portfolio = portfolios[link["portfolio_id"]]
+                strategy = strategies[link["strategy_id"]]
+                if portfolio and strategy:
+                    em.subscribe_portfolio_to_strategy(portfolio, strategy.strategy_id)
 
-    time.sleep(43)
+    def run_forever(self):
+        logger.success("Application started.")
+        try:
+            while True:
+                time.sleep(1)
+        except KeyboardInterrupt:
+            logger.warning("Shutdown initiated …")
+            self._stop_everything()
 
-    monitoring.stop()
-    market.stop()
-    event_manager.stop()
 
-def create_backtest():
-    event_manager = EventManager.create_new(mode="backtest")
-    event_manager.start()
-
-    strategy = AbstractStrategy.create_strategy(RandomStrategy, event_manager.event_manager_id, "BTC/USDT", "Random", {})
-
-    market = MarketDataProvider(BybitConnector(testnet=True), mode='backtest')
-    market.subscribe(strategy, strategy.trading_pair, '1h')
-
-    risk_controller_id = add_risk_controller("aggressive", None, None,    {
-        'BTC': 0.8,
-        'ETH': 0.5
-    })
-
-    portfolio = Portfolio.create_portfolio(
-        event_manager_id=event_manager.event_manager_id,
-        risk_controller_id=risk_controller_id,
-        portfolio_name="Backtest 1",
-        managed_assets={"BTC": Decimal(0.01), "ETH": Decimal(3), "USDT": Decimal(10000)},
-        currency="USDT",
-        initial_balance=Decimal(10000),
-        exchange="bybit"
-    )
-    monitoring = Monitoring()
-
-    event_manager.subscribe_portfolio_to_strategy(portfolio, strategy.strategy_id)
-
-    time.sleep(100)
-
-    monitoring.stop()
-    market.stop()
-    event_manager.stop()
+def main() -> None:
+    signal.signal(signal.SIGINT, system_kill)
+    signal.signal(signal.SIGTERM, system_kill)
+    app = App()
+    try:
+        app.bootstrap()
+        app.run_forever()
+    except Exception:
+        logger.exception("Fatal error – aborting …")
+        app._stop_everything()
+        sys.exit(1)
 
 if __name__ == "__main__":
-    logger.info("Test in main")
-    create_fake_portfolio()
+    main()

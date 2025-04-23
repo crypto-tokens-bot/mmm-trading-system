@@ -16,6 +16,7 @@ def cli():
     """CLI for managing strategies and portfolios via query modules"""
     pass
 
+
 @cli.command('init')
 def init_db():
     """Apply migrations using migrate.py's apply_migrations function."""
@@ -38,8 +39,8 @@ def list_strategies():
     """List all strategies using attributes from the table schema."""
     result = get_all_strategies()
     for strategy in result:
-        attrs = ", ".join(f"{key}={value}" for key, value in strategy.items())
-        click.echo(f"- {attrs}")
+        click.echo(
+            f"- Strategy_id={strategy['strategy_id']}, name={strategy['strategy_name']}, type={strategy['strategy_type']}")
 
 
 @cli.command('list_portfolios')
@@ -47,8 +48,7 @@ def list_portfolios():
     """List all portfolios using attributes from the table schema."""
     result = get_all_portfolios()
     for portfolio in result:
-        attrs = ", ".join(f"{key}={value}" for key, value in portfolio.items())
-        click.echo(f"- {attrs}")
+        click.echo(f"- Portfolio_id={portfolio['portfolio_id']}, name={portfolio['portfolio_name']}")
 
 
 @cli.command('list_subscriptions')
@@ -58,7 +58,6 @@ def list_subscriptions():
     for portfolio in result:
         attrs = ", ".join(f"{key}={value}" for key, value in portfolio.items())
         click.echo(f"- {attrs}")
-
 
 
 @cli.command('remove_strategy')
@@ -168,12 +167,14 @@ def create_strategy(event_manager_id, trading_pair, strategy_name, strategy_type
 
 
 @cli.command('create_portfolio')
-@click.option('--event-manager-id','event_manager_id', required=True, help='UUID of the existing event manager')
+@click.option('--event-manager-id', 'event_manager_id', required=True, help='UUID of the existing event manager')
 @click.option('--risk-model', 'risk_model', default=None, help='Risk model name')
-@click.option('--stop-loss-coefficient', 'stop_loss_coefficient', type=float, default=None, help='Stop loss coefficient (optional)')
-@click.option('--take-profit-coefficient', 'take_profit_coefficient', type=float, default=None, help='Take profit coefficient (optional)')
+@click.option('--stop-loss-coefficient', 'stop_loss_coefficient', type=float, default=None,
+              help='Stop loss coefficient (optional)')
+@click.option('--take-profit-coefficient', 'take_profit_coefficient', type=float, default=None,
+              help='Take profit coefficient (optional)')
 @click.option('--max-asset-share', 'max_asset_share_json', required=True, help='Max asset share JSON')
-@click.option('--portfolio-name','portfolio_name', required=True, help='Portfolio name (unique)')
+@click.option('--portfolio-name', 'portfolio_name', required=True, help='Portfolio name (unique)')
 @click.option('--managed-assets', 'managed_assets_json', required=True, help='Managed assets JSON')
 @click.option('--currency', default='USDT', show_default=True, help='Currency')
 @click.option('--initial-balance', 'initial_balance', type=float, required=True, help='Initial balance')
@@ -224,6 +225,7 @@ def create_portfolio(event_manager_id, risk_model, stop_loss_coefficient,
         f"Portfolio created: id={portfolio_id}, name={portfolio_name}, rc_id={risk_controller_id}"
     )
 
+
 @cli.command('create_subscription')
 @click.option('--portfolio-id', 'portfolio_id', required=True, help='UUID of the portfolio')
 @click.option('--strategy-id', 'strategy_id', required=True, help='UUID of the strategy')
@@ -238,6 +240,7 @@ def create_subscription(portfolio_id, strategy_id):
     add_strategy_subscription(portfolio_id, strategy_id)
     click.echo(f"Subscription created: portfolio {portfolio_id} -> strategy {strategy_id}")
 
+
 @cli.command('remove_subscription')
 @click.option('--portfolio-id', 'portfolio_id', required=True, help='UUID of the portfolio')
 @click.option('--strategy-id', 'strategy_id', required=True, help='UUID of the strategy')
@@ -245,7 +248,6 @@ def remove_subscription(portfolio_id, strategy_id):
     """Unsubscribe a strategy from a portfolio."""
     delete_strategy_subscription(portfolio_id, strategy_id)
     click.echo(f"Subscription removed: portfolio {portfolio_id} -> strategy {strategy_id}")
-
 
 
 if __name__ == '__main__':
