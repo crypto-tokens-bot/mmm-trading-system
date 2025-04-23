@@ -67,7 +67,6 @@ class EventManager(threading.Thread):
 
         if portfolio.portfolio_id not in self._strategy_subscriptions[strategy_id]:
             self._strategy_subscriptions[strategy_id].append(portfolio)
-            add_strategy_subscription(portfolio.portfolio_id, strategy_id)
             logger.info(f"Portfolio {portfolio.portfolio_id} subscribed to strategy {strategy_id}")
         else:
             logger.warning(f"Portfolio {portfolio.portfolio_id} is already subscribed to strategy {strategy_id}")

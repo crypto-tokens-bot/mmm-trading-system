@@ -17,6 +17,7 @@ from src.market_data_provider import MarketDataProvider
 from src.monitoring import Monitoring
 from src.portfolio import Portfolio
 from src.strategy.abstract_strategy import AbstractStrategy
+from src.telegram_bot.handlers import TelegramBotHandlers
 
 
 def system_kill(*_, **__):
@@ -29,6 +30,7 @@ class App:
     """Orchestrates the lifetime of trading subsystems."""
 
     def __init__(self) -> None:
+        self._telegram_bot = None
         self._event_managers = []
         self._monitoring = None
         self._live_market = None
@@ -70,6 +72,10 @@ class App:
         self._track(self._backtest_market)
         self._wire_existing_objects()
         self._monitoring = self._track(Monitoring())
+        self._telegram_bot = TelegramBotHandlers()
+        self._telegram_bot.start()
+        self._track(self._telegram_bot)
+
 
 
     def _wire_existing_objects(self) -> None:

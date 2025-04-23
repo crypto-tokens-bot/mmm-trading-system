@@ -82,13 +82,15 @@ class SimulatedOrderExecutor(OrderExecutor):
             fees = self.fee_model.calculate(order, execution_price)
             update_order_info(order_id, executed_quantity=order['initial_quantity'],
                               average_price=execution_price, total_fee=fees, execution_summary={})
-            update_order_status(order_id, "executed", params['executed_time'])
-
-            add_event(order['event_manager_id'], "OrderExecutedEvent", 2,
-                      {"order_id": order_id, 'order_exchange_id': None,
-                       "portfolio_id": str(order['portfolio_id']), 'symbol': order['symbol']})
-            logger.success(f"Simulated order {order_id} executed at {execution_price}.")
-
+            if 'executed_time' in params:
+                update_order_status(order_id, "executed", params['executed_time'])
+                add_event(order['event_manager_id'], "OrderExecutedEvent", 2,
+                          {"order_id": order_id, 'order_exchange_id': None,
+                           "portfolio_id": str(order['portfolio_id']), 'symbol': order['symbol']})
+                logger.success(f"Simulated order {order_id} executed at {execution_price}.")
+            else:
+                update_order_status(order_id, "canceled", datetime.now())
+                logger.warning(f"Simulated order {order_id} canceled.")
         except Exception as e:
             logger.error(f"Failed to execute simulated order {order_id}: {e}")
             return None

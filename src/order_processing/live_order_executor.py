@@ -114,7 +114,7 @@ class LiveOrderExecutor(OrderExecutor):
                 else:
                     self._order_queue.put(order_id)
             except Exception as e:
-                logger.exception(f"Error while monitoring order: {e}")
+                logger.warning(f"Skipped monitoring order: {e}")
 
 
     def stop(self):
