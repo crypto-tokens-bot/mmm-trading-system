@@ -13,6 +13,10 @@ def add_strategy_subscription(portfolio_id, strategy_id):
     """
     execute_query(query, locals())
 
+def get_all_subscriptions():
+    query = "SELECT * FROM strategy_subscriptions"
+    return execute_query(query, locals())
+
 def get_subscriptions_by_portfolio(portfolio_id):
     """
     Retrieves all strategies subscribed by a given portfolio.
@@ -22,3 +26,18 @@ def get_subscriptions_by_portfolio(portfolio_id):
     """
     query = "SELECT * FROM strategy_subscriptions WHERE portfolio_id = %(portfolio_id)s"
     return execute_query(query, {"portfolio_id": portfolio_id})
+
+
+def delete_strategy_subscription(portfolio_id, strategy_id):
+    """
+    Remove a subscription linking the given strategy from the given portfolio.
+
+    :param portfolio_id: UUID of the portfolio
+    :param strategy_id: UUID of the strategy
+    """
+    query = """
+    DELETE FROM strategy_subscriptions
+    WHERE portfolio_id = %(portfolio_id)s
+      AND strategy_id = %(strategy_id)s
+    """
+    execute_query(query, {'portfolio_id': portfolio_id, 'strategy_id': strategy_id})

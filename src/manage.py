@@ -3,8 +3,11 @@ import click
 
 from src.db.queries.event_managers import get_all_event_managers, delete_event_manager, add_event_manager, \
     get_event_manager_by_id
-from src.db.queries.portfolios import get_all_portfolios, delete_portfolio
+from src.db.queries.portfolios import get_all_portfolios, delete_portfolio, add_portfolio
+from src.db.queries.risk_controllers import add_risk_controller
 from src.db.queries.strategies import get_all_strategies, delete_strategy, add_strategy
+from src.db.queries.strategy_subscriptions import add_strategy_subscription, delete_strategy_subscription, \
+    get_all_subscriptions
 from src.monitoring import Monitoring
 
 
@@ -46,6 +49,16 @@ def list_portfolios():
     for portfolio in result:
         attrs = ", ".join(f"{key}={value}" for key, value in portfolio.items())
         click.echo(f"- {attrs}")
+
+
+@cli.command('list_subscriptions')
+def list_subscriptions():
+    """List all portfolios using attributes from the table schema."""
+    result = get_all_subscriptions()
+    for portfolio in result:
+        attrs = ", ".join(f"{key}={value}" for key, value in portfolio.items())
+        click.echo(f"- {attrs}")
+
 
 
 @cli.command('remove_strategy')
@@ -129,7 +142,7 @@ def create_event_manager(mode):
 )
 def create_strategy(event_manager_id, trading_pair, strategy_name, strategy_type, parameters_json):
     """Add a new strategy under an existing event manager."""
-    #  $env:PYTHONPATH = "."; python -m src.manage create_strategy --event-manager-id 023a8284-6971-4012-bb46-374af747536f --trading-pair BTC/USDT --strategy-name Test --strategy-type Random --parameters '{}'
+    #  $env:PYTHONPATH = "."; python -m src.manage create_strategy --event-manager-id 023a8284-6971-4012-bb46-374af747536f --trading-pair BTC/USDT --strategy-name Test --strategy-type Random --parameters '{\"window\":20,\"threshold\":0.01}'
     try:
         params = json.loads(parameters_json)
     except json.JSONDecodeError:
@@ -154,54 +167,86 @@ def create_strategy(event_manager_id, trading_pair, strategy_name, strategy_type
     click.echo(f"Strategy '{strategy_name}' (type={strategy_type}) added with id={strategy_id}.")
 
 
-@cli.command()
-@click.option('--name', required=True,
-              help='Unique portfolio name')
-@click.option('--risk-params', 'risk_params_json', required=True,
-              help='Risk controller params JSON')
-def add_portfolio(name, risk_params_json):
-    """Add a new portfolio."""
+@cli.command('create_portfolio')
+@click.option('--event-manager-id','event_manager_id', required=True, help='UUID of the existing event manager')
+@click.option('--risk-model', 'risk_model', default=None, help='Risk model name')
+@click.option('--stop-loss-coefficient', 'stop_loss_coefficient', type=float, default=None, help='Stop loss coefficient (optional)')
+@click.option('--take-profit-coefficient', 'take_profit_coefficient', type=float, default=None, help='Take profit coefficient (optional)')
+@click.option('--max-asset-share', 'max_asset_share_json', required=True, help='Max asset share JSON')
+@click.option('--portfolio-name','portfolio_name', required=True, help='Portfolio name (unique)')
+@click.option('--managed-assets', 'managed_assets_json', required=True, help='Managed assets JSON')
+@click.option('--currency', default='USDT', show_default=True, help='Currency')
+@click.option('--initial-balance', 'initial_balance', type=float, required=True, help='Initial balance')
+@click.option('--exchange', default='bybit', show_default=True, help='Exchange name')
+def create_portfolio(event_manager_id, risk_model, stop_loss_coefficient,
+                     take_profit_coefficient, max_asset_share_json,
+                     portfolio_name, managed_assets_json,
+                     currency, initial_balance, exchange):
+    """Create a new portfolio with associated risk controller."""
+    # python src/manage.py create_portfolio --event-manager-id 023a8284-6971-4012-bb46-374af747536f --risk-model simple --stop-loss-coefficient 0.5 --take-profit-coefficient 1.5 --max-asset-share '{\"BTC\":0.5,\"ETH\":0.3,\"USDT\":0.2}' --portfolio-name my-portfolio2 --managed-assets '{\"BTC\": 1,\"ETH\": 2,\"USDT\": 150000}' --initial-balance 15000 --currency USDT --exchange bybit
     try:
-        json.loads(risk_params_json)
+        managed_assets_json = json.loads(managed_assets_json)
+        max_asset_share_json = json.loads(max_asset_share_json)
     except json.JSONDecodeError:
-        click.echo("Invalid JSON for risk controller parameters", err=True)
+        click.echo("Invalid JSON for managed assets or max asset share", err=True)
         raise click.Abort()
 
-    new_id = insert_portfolio(name=name, risk_controller_params=risk_params_json)
-    click.echo(f"Portfolio '{name}' added with id={new_id}.")
+    try:
+        event_manager = get_event_manager_by_id(event_manager_id)
+        if event_manager is None:
+            raise Exception
+    except Exception:
+        click.echo(f"Error: event_manager_id {event_manager_id} does not exist.", err=True)
+        raise click.Abort()
+
+    portfolios = get_all_portfolios()
+    if portfolio_name in {p['portfolio_name'] for p in portfolios}:
+        click.echo(f"Error: portfolio name '{portfolio_name}' already exists", err=True)
+        raise click.Abort()
+
+    risk_controller_id = add_risk_controller(
+        risk_model=risk_model,
+        stop_loss_coefficient=stop_loss_coefficient,
+        take_profit_coefficient=take_profit_coefficient,
+        max_asset_share=max_asset_share_json
+    )
+
+    portfolio_id = add_portfolio(
+        event_manager_id=event_manager_id,
+        risk_controller_id=risk_controller_id,
+        portfolio_name=portfolio_name,
+        managed_assets=managed_assets_json,
+        currency=currency,
+        initial_balance=initial_balance,
+        exchange=exchange
+    )
+    click.echo(
+        f"Portfolio created: id={portfolio_id}, name={portfolio_name}, rc_id={risk_controller_id}"
+    )
+
+@cli.command('create_subscription')
+@click.option('--portfolio-id', 'portfolio_id', required=True, help='UUID of the portfolio')
+@click.option('--strategy-id', 'strategy_id', required=True, help='UUID of the strategy')
+def create_subscription(portfolio_id, strategy_id):
+    """Subscribe a strategy to a portfolio."""
+    if portfolio_id not in {str(p['portfolio_id']) for p in get_all_portfolios()}:
+        click.echo(f"Error: portfolio_id {portfolio_id} not found", err=True)
+        raise click.Abort()
+    if strategy_id not in {str(s['strategy_id']) for s in get_all_strategies()}:
+        click.echo(f"Error: strategy_id {strategy_id} not found", err=True)
+        raise click.Abort()
+    add_strategy_subscription(portfolio_id, strategy_id)
+    click.echo(f"Subscription created: portfolio {portfolio_id} -> strategy {strategy_id}")
+
+@cli.command('remove_subscription')
+@click.option('--portfolio-id', 'portfolio_id', required=True, help='UUID of the portfolio')
+@click.option('--strategy-id', 'strategy_id', required=True, help='UUID of the strategy')
+def remove_subscription(portfolio_id, strategy_id):
+    """Unsubscribe a strategy from a portfolio."""
+    delete_strategy_subscription(portfolio_id, strategy_id)
+    click.echo(f"Subscription removed: portfolio {portfolio_id} -> strategy {strategy_id}")
 
 
 
 if __name__ == '__main__':
     cli()
-
-
-# При создании портфеля нужно также создать и риск контроллер, поэтому для него тоже запрашиваем параматеры
-# add_portfolio(event_manager_id, risk_controller_id, portfolio_name, managed_assets, currency, initial_balance, exchange)
-# add_risk_controller(risk_model, stop_loss_coefficient, take_profit_coefficient,  max_asset_share):
-#
-# event_manager_id должен существовать, portfolio_name должно быть уникально, managed_assets - json, currenct по умолчанию USDT, initial_balance, exchange по умолччанию bybit
-# risk_model, stop_loss_coefficient по умолчанию None, take_profit_coefficient по умолчанию None, max_asset_share - json
-#
-# Сначала создаём риск контроллер, затем портфель, предварительно обязательно проверить корректность всех полей.
-
-
-# Создать метод для добавления и удаления подписок портфелей на стратегии:
-#     add_strategy_subscription(portfolio_id, strategy_id)
-#     оба id должны существовать
-#
-# Метод для удаления необходимо реализовать
-
-
-# В функции main необходимо запустить все event_managerы.
-# Необходимо создать классы со стратегиями.
-#
-# Создать MarketDataProvider, подписать его на стратегии. Таймфреймы брать из параметров стратегии. Если там нет, то по умолчанию '1h'
-# Создать Monitoring
-#
-# Необхоидмо создать классы для всех портфелей (параллельно создавай классы для риск контроллеров).
-# Необходимо подписать портфели на стратегии, следуя таблице strategy_subscriptions
-#
-# Далее ожидаем завершения программы
-#
-# Перед завершением ожидать окончания работы всех классов.
