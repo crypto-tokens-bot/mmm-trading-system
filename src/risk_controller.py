@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import Dict, Optional
 
+from src.config.logger_config import logger
 from src.db.queries.risk_controllers import get_risk_controller_by_id
 
 
@@ -38,6 +39,10 @@ class RiskController:
     ):
         self.id = risk_controller_id
         self.risk_model = risk_model
+        if stop_loss_coefficient == 0:
+            stop_loss_coefficient = None
+        if take_profit_coefficient == 0:
+            take_profit_coefficient = None
         self.stop_loss_coef = stop_loss_coefficient
         self.take_profit_coef = take_profit_coefficient
         self.max_asset_share = max_asset_share
@@ -94,6 +99,9 @@ class RiskController:
             return None
 
         affordable_qty = quote_balance / target_price
+        logger.debug(quote_balance)
+        logger.debug(target_price)
+        logger.debug(affordable_qty)
         final_qty = min(allowed_to_buy, affordable_qty).quantize(Decimal("0.000001"))
         if final_qty <= Decimal("1e-3"):
             return None

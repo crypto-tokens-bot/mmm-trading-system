@@ -61,8 +61,6 @@ Create a `.env` file in the **project root** and define the variables below.
 | `TELEGRAM_TOKEN` | yes | Token of the Telegram bot sending alerts |
 | `ADMINS` | yes | Comma‑separated Telegram user IDs with admin rights |
 
-> **Never commit real keys to VCS!**
-
 ---
 
 ## 4. Spin up the infrastructure (Docker Compose)
@@ -139,7 +137,7 @@ Stop with **Ctrl   +C**.
 | `python -m src.manage list_portfolios` | list portfolios |
 | `python -m src.manage list_subscriptions` | list portfolio↔strategy links |
 
-All commands are also available as Make targets in `scripts/cli.mk`.
+All commands are also available as Make targets in `cli.mk`.
 
 ---
 

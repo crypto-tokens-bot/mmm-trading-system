@@ -48,7 +48,7 @@ def get_next_event(event_manager_id):
     SELECT event_id, event_manager_id, event_type, priority, payload, created_at
     FROM events
     WHERE event_manager_id = %(event_manager_id)s AND executed_at IS NULL
-    ORDER BY priority DESC, created_at ASC
+    ORDER BY priority ASC, created_at ASC
     LIMIT 1
     """
     result = execute_query(query, {"event_manager_id": event_manager_id})

@@ -6,6 +6,7 @@ from src.config.logger_config import logger
 from src.connectors.bybit_connector import BybitConnector
 from src.db.queries.events import get_next_event, mark_event_as_processed
 from src.db.queries.event_managers import add_event_manager, update_event_manager_status, get_event_manager_by_id
+from src.db.queries.portfolios import get_portfolio_by_id
 from src.db.queries.strategy_subscriptions import add_strategy_subscription
 from src.order_processing.live_order_executor import LiveOrderExecutor
 from src.order_processing.order_controller import OrderController
@@ -85,7 +86,7 @@ class EventManager(threading.Thread):
             if event['event_type'] == "OrderPlacementEvent":
                 self._order_executor.execute_order(event['payload']['order_id'], event['payload'])
             elif event['event_type'] == "OrderExecutedEvent":
-                portfolio = Portfolio.load_by_id(event['payload']['portfolio_id'])
+                portfolio = Portfolio.load_by_id(str(event['payload']['portfolio_id']))
                 portfolio.handle_order_executed_event(event)
             elif event['event_type'] == "SignalEvent":
                 strategy_id = event['payload']['strategy_id']
@@ -95,7 +96,8 @@ class EventManager(threading.Thread):
                 subscribed_portfolios = self._strategy_subscriptions.get(strategy_id, [])
                 for portfolio in subscribed_portfolios:
                     try:
-                        if not portfolio.has_executing_order:
+                        portfolio_info = get_portfolio_by_id(portfolio.portfolio_id)
+                        if not portfolio_info['has_executing_order']:
                             portfolio.handle_signal_event(event)
                         else:
                             logger.info(f"Signal ignored for portfolio {portfolio.portfolio_id}.")

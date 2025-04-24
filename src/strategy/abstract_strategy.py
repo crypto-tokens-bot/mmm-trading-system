@@ -33,7 +33,7 @@ class AbstractStrategy(ABC):
         """
         Create a new SignalEvent in the event manager.
         """
-        add_event(event_manager_id=self.event_manager_id, event_type="SignalEvent", priority=2,
+        add_event(event_manager_id=self.event_manager_id, event_type="SignalEvent", priority=3,
                   payload={"strategy_id": self.strategy_id,
                            "strategy_name": self.strategy_name,
                            "trading_pair": self.trading_pair,

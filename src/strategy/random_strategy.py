@@ -52,12 +52,12 @@ class RandomStrategy(AbstractStrategy):
         """
         Generate a BUY signal with 50% probability.
         """
-        if random.random() < 0.5:
+        if random.random() < 0.1:
             self._generate_signal_event("buy", self.last_time)
 
     def check_exit_signal(self):
         """
         Generate a SELL signal with 50% probability.
         """
-        if random.random() < 0.5:
+        if random.random() < 0.1:
             self._generate_signal_event("sell", self.last_time)

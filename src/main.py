@@ -65,11 +65,11 @@ class App:
             self._event_managers.append(event_manager)
 
         self._live_market = None
-        # self._live_market = MarketDataProvider(BybitConnector(testnet=False))
-        # self._track(self._live_market)
-        self._backtest_market = None
-        self._backtest_market = MarketDataProvider(BybitConnector(testnet=False), mode="backtest")
-        self._track(self._backtest_market)
+        self._live_market = MarketDataProvider(BybitConnector(testnet=False))
+        self._track(self._live_market)
+        # self._backtest_market = None
+        # self._backtest_market = MarketDataProvider(BybitConnector(testnet=False), mode="backtest")
+        # self._track(self._backtest_market)
         self._wire_existing_objects()
         self._monitoring = self._track(Monitoring())
         self._telegram_bot = TelegramBotHandlers()

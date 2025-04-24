@@ -47,7 +47,7 @@ class TelegramBotCallback:
             except Exception as e:
                 logger.warning(f"No price value: {e}")
                 price = 0
-            self._bot.send_message(user_id, text=investment_info(user_address, balance, price),  parse_mode='Markdown',)
+            self._bot.send_message(user_id, text=investment_info(user_address, balance, price),  parse_mode='Markdown')
             self._bot.send_message(
                 chat_id=user_id,
                 text=texts.choose_option(),

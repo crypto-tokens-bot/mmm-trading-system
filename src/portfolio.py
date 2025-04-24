@@ -14,7 +14,8 @@ class Portfolio:
     _cache: dict = {}
 
     @classmethod
-    def load_by_id(cls, portfolio_id: int):
+    def load_by_id(cls, portfolio_id: str):
+        portfolio_id = str(portfolio_id)
         if portfolio_id not in cls._cache:
             cls._cache[portfolio_id] = cls(portfolio_id)
         return cls._cache[portfolio_id]
@@ -64,7 +65,7 @@ class Portfolio:
                 return None
 
             portfolio = cls(portfolio_id=row["portfolio_id"])
-            cls._cache[portfolio_id] = portfolio
+            cls._cache[str(portfolio_id)] = portfolio
             return portfolio
 
         except Exception as exc:
