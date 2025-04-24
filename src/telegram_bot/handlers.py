@@ -35,6 +35,7 @@ class TelegramBotHandlers(Thread):
         def continue_chat(message):
             logger.info("Got text %r from %s", message.text, message.chat.id)
             if message.chat.type == "private" and message.text == 'PnL 💲':
+
                 self._bot.send_message(
                     chat_id=message.chat.id,
                     text=texts.pnl(),

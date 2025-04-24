@@ -5,6 +5,10 @@ from contextlib import suppress
 from threading import active_count
 from typing import Dict
 
+import requests
+import os
+
+from scripts.grafana import save_panel_png
 from src.config.logger_config import logger
 from src.connectors.bybit_connector import BybitConnector
 from src.db.migrations.migrate import apply_migrations
@@ -137,5 +141,7 @@ def main() -> None:
         app._stop_everything()
         sys.exit(1)
 
+
 if __name__ == "__main__":
+    # save_panel_png("my_panel.png")
     main()
