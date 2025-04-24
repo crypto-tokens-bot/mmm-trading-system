@@ -2,7 +2,7 @@ import random
 from typing import Dict, Any, Optional
 
 from src.config.logger_config import logger
-from src.market_analysis import MarketAnalysis
+from src.market_data.market_analysis import MarketAnalysis
 from src.strategy.abstract_strategy import AbstractStrategy
 
 

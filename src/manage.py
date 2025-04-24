@@ -8,7 +8,6 @@ from src.db.queries.risk_controllers import add_risk_controller
 from src.db.queries.strategies import get_all_strategies, delete_strategy, add_strategy
 from src.db.queries.strategy_subscriptions import add_strategy_subscription, delete_strategy_subscription, \
     get_all_subscriptions
-from src.monitoring import Monitoring
 
 
 @click.group()

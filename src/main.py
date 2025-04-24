@@ -5,10 +5,6 @@ from contextlib import suppress
 from threading import active_count
 from typing import Dict
 
-import requests
-import os
-
-from scripts.grafana import save_panel_png
 from src.config.logger_config import logger
 from src.connectors.bybit_connector import BybitConnector
 from src.db.migrations.migrate import apply_migrations
@@ -17,7 +13,7 @@ from src.db.queries.portfolios import get_portfolios_by_event_manager_id
 from src.db.queries.strategies import get_strategies_by_event_manager_id
 from src.db.queries.strategy_subscriptions import get_subscriptions_by_portfolio
 from src.event_manager import EventManager
-from src.market_data_provider import MarketDataProvider
+from src.market_data.market_data_provider import MarketDataProvider
 from src.monitoring import Monitoring
 from src.portfolio import Portfolio
 from src.strategy.abstract_strategy import AbstractStrategy

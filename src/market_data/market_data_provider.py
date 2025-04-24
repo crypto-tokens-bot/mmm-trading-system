@@ -1,5 +1,4 @@
 import threading
-import time
 from datetime import timedelta
 from pathlib import Path
 from src.config.logger_config import logger
@@ -9,7 +8,7 @@ from typing import Dict, List, Tuple
 
 from src.connectors.exchange_connector import ExchangeConnector
 from src.db.queries.ohlcv_data import add_ohlcv_data
-from src.historical_data_feed import HistoricalDataFeed
+from src.market_data.historical_data_feed import HistoricalDataFeed
 
 
 class MarketDataProvider(threading.Thread):
@@ -26,7 +25,7 @@ class MarketDataProvider(threading.Thread):
             cls._instance._initialized = False
         return cls._instance
 
-    def __init__(self, exchange_connector: ExchangeConnector, data_directory: str = "market_data_test", mode='live'):
+    def __init__(self, exchange_connector: ExchangeConnector, data_directory: str = "market_data_ohlcv", mode='live'):
         """
         Initializes and automatically starts the market data provider.
 

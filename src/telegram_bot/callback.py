@@ -1,10 +1,8 @@
-import asyncio
-import json
 import re
 
 from telebot.types import InputMediaPhoto
 
-from scripts.grafana import get_panel_png, DEFAULT_TEMPLATE_VARS
+from src.tools.grafana import get_panel_png, DEFAULT_TEMPLATE_VARS
 from src.config.logger_config import logger
 from src.connectors.token_connector import get_balance, get_price
 from src.db.queries.portfolios import get_all_portfolios, get_portfolio_by_id

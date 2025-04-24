@@ -1,35 +1,35 @@
-# MMM Trading System – Installation & Quick Start Guide
+# MMM Trading System – Installation & Quick Start Guide
 
-**MMM Trading System** is an algorithmic‑trading bot with a backtesting system.
+**MMM Trading System** is an algorithmic‑trading bot with a backtesting system.
 
-## 1. System & Software Requirements
+## 1. System & Software Requirements
 
 ### Hardware Sizing
 
-| Resource | **Minimum** | **Recommended** (multi‑market) |
-|----------|-------------|---------------------------------|
-| CPU      | 2 vCPUs     | 4–8 vCPUs                       |
-| RAM      | 2 GiB       | 8 GiB or more                   |
-| Disk     | 2 GiB SSD   | 10 GiB+ fast SSD                |
-| Network  | 5 Mbps ↓ / 1 Mbps ↑ | 25 Mbps sym. |
+| Resource | **Minimum**         | **Recommended** (multi‑market) |
+|----------|---------------------|-------------------------------|
+| CPU      | 2   vCPUs             | 4–8   vCPUs                   |
+| RAM      | 2   GiB               | 16   GiB or more              |
+| Disk     | 2   GiB SSD           | 100   GiB+ fast SSD           |
+| Network  | 5 Mbps ↓ / 1   Mbps ↑ | 500   Mbps sym.               |
 
 ### Supported Operating Systems
 
-* **Ubuntu** 22.04 LTS or newer
-* **macOS** 14 (Sonoma) or newer
-* **Windows 11** (native Docker Desktop)
+* **Ubuntu** 22.04 LTS or newer
+* **macOS** 14 (Sonoma) or newer
+* **Windows 11** (native Docker Desktop)
 
 ### Software Stack
 
 | Tool | **Minimum version** | **Recommended** |
 |------|---------------------|-----------------|
 | Docker | 23.x | latest stable |
-| Docker Compose | 2.x | latest |
+| Docker Compose | 2.x | latest |
 | Git | 2.x | latest |
-| *(optional)* Python | 3.12 | latest 3.12.x |
-| *(optional)* GNU Make | 4.x | latest |
+| *(optional)* Python | 3.12 | latest 3.12.x |
+| *(optional)* GNU Make | 4.x | latest |
 
-> If you launch **only** via Docker Compose you can skip installing Python and Make on the host.
+> If you launch **only** via Docker Compose you can skip installing Python and Make on the host.
 
 ---
 
@@ -65,7 +65,7 @@ Create a `.env` file in the **project root** and define the variables below.
 
 ---
 
-## 4. Spin up the infrastructure (Docker Compose)
+## 4. Spin up the infrastructure (Docker Compose)
 
 `docker-compose.yml` already includes ClickHouse, Loki, Grafana and the image renderer. Run:
 
@@ -120,7 +120,7 @@ pip install -r requirements.txt
 python src/main.py
 ```
 
-Stop with **Ctrl +C**.
+Stop with **Ctrl   +C**.
 
 ---
 
@@ -148,9 +148,9 @@ All commands are also available as Make targets in `scripts/cli.mk`.
 A dashboard definition is located in `grafana/dashboard.json` and can be imported via the Grafana UI.
 
 1. Log in to Grafana (<http://localhost:3000>, user/pass from `.env` or defaults).
-2. **Create → Import Dashboard**.
+2. **Create   → Import   Dashboard**.
 3. Upload `grafana/dashboard.json` and choose the Loki / ClickHouse data sources.
 
 ---
 
-Everything is ready! With `.env` set and containers running the bot will start trading and streaming logs to Loki → Grafana. Manage reference data via the CLI and re‑run `init` whenever you add new SQL migrations.
+Everything is ready! With `.env` set and containers running the bot will start trading and streaming logs to Loki   →   Grafana. Manage reference data via the CLI and re‑run `init` whenever you add new SQL migrations.

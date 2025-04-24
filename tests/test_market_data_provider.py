@@ -1,12 +1,10 @@
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 import pandas as pd
 import asyncio
-from pathlib import Path
-from loguru import logger
 
 from src.connectors.exchange_connector import ExchangeConnector
-from src.market_data_provider import MarketDataProvider
+from src.market_data.market_data_provider import MarketDataProvider
 
 
 @pytest.fixture

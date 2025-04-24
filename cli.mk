@@ -1,6 +1,6 @@
-PY = ..\venv\Scripts\python.exe
+PY = venv\Scripts\python.exe
 MANAGE = -m src.manage
-ENV = set "PYTHONPATH=../" &
+ENV = set "PYTHONPATH=." &
 RUN = $(ENV) $(PY) $(MANAGE)
 
 .PHONY: help \
