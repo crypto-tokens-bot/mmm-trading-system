@@ -91,7 +91,6 @@ def get_panel_png(
 
     return resp.content
 
-
 def save_panel_png(
     filepath: str,
     base_url: str                = DEFAULT_BASE_URL,

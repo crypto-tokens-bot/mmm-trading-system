@@ -41,3 +41,5 @@ def delete_strategy_subscription(portfolio_id, strategy_id):
       AND strategy_id = %(strategy_id)s
     """
     execute_query(query, {'portfolio_id': portfolio_id, 'strategy_id': strategy_id})
+
+

@@ -21,34 +21,52 @@ class TelegramBotHandlers(Thread):
 
         @self._bot.message_handler(commands=["start", "help"])
         def start_chat(message):
-            logger.info("Got command %r from %s", message.text, message.chat.id)
+            logger.info(f"Got start command {message.text} from {message.chat.id}")
             if message.chat.type == "private" and message.text == '/start':
                 self._bot.send_message(
                     chat_id=message.chat.id,
                     text=texts.greeting(),
                     parse_mode='html',
-                    reply_markup=keyboards.menu_static()
+                    reply_markup=keyboards.get_reply_keyboard()
+                )
+                self._bot.send_message(
+                    chat_id=message.chat.id,
+                    text=texts.choose_option(),
+                    parse_mode='html',
+                    reply_markup=keyboards.get_main_keyboard(message.chat.id)
                 )
                 logger.info("Sent greeting to %s", message.chat.id)
 
+        @self._bot.message_handler(func=lambda msg: msg.text == "📋 Menu" or msg.text == "/cancel")
+        def show_main_menu(message):
+            self.callback.cancel_action(message.chat.id)
+            self._bot.send_message(
+                chat_id=message.chat.id,
+                text=texts.choose_option(),
+                parse_mode='html',
+                reply_markup=keyboards.get_main_keyboard(message.chat.id)
+            )
+
         @self._bot.message_handler(content_types=["text"])
         def continue_chat(message):
-            logger.info("Got text %r from %s", message.text, message.chat.id)
-            if message.chat.type == "private" and message.text == 'PnL 💲':
-
-                self._bot.send_message(
-                    chat_id=message.chat.id,
-                    text=texts.pnl(),
-                    parse_mode='html'
-                )
-                logger.info("Sent PnL info to %s", message.chat.id)
+            logger.info(f"Got text {message.text} from {message.chat.id}")
+            if message.chat.type == "private":
+                user_id = str(message.chat.id)
+                if user_id in self.callback.user_states and self.callback.user_states[user_id] is not None:
+                    self.callback.process_message(message)
+                else:
+                    self._bot.send_message(
+                        chat_id=message.chat.id,
+                        text=texts.choose_option(),
+                        parse_mode='html',
+                        reply_markup=keyboards.get_main_keyboard(message.chat.id)
+                    )
 
         @self._bot.callback_query_handler(func=lambda call: True)
         def callback_text(call):
-            logger.info("Got callback %r from %s", call.data, call.from_user.id)
-            if re.match(r'^strategy', call.data):
-                logger.info("Handling strategy callback %r", call.data)
-                # ... your logic ...
+            logger.info(f"Got callback {call.data} from {call.from_user.id}")
+            self.callback.process_data(call)
+
 
     def run(self):
         logger.info("Starting polling loop")
